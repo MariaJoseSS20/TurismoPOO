@@ -1,0 +1,71 @@
+{% extends "web/base.html" %}
+
+{% block title %}Panel de Administración{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <!-- Sidebar -->
+        <nav class="col-md-3 col-lg-2 d-md-block bg-light sidebar collapse">
+            <div class="position-sticky pt-3">
+                <h5 class="text-primary fw-bold mb-4">
+                    <i class="bi bi-shield-check"></i> Panel Admin
+                </h5>
+                <ul class="nav flex-column">
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'admin.dashboard' %}active{% endif %}" href="{{ url_for('admin.dashboard') }}">
+                            <i class="bi bi-speedometer2"></i> Dashboard
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'auth.perfil' %}active{% endif %}" href="{{ url_for('auth.perfil') }}">
+                            <i class="bi bi-person-circle"></i> Mi Perfil
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'admin.reservas' %}active{% endif %}" href="{{ url_for('admin.reservas') }}">
+                            <i class="bi bi-calendar-check"></i> Reservas
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.path == '/destinos' %}active{% endif %}" href="{{ url_for('web.destinos') }}">
+                            <i class="bi bi-geo-alt-fill"></i> Destinos
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </nav>
+
+        <!-- Contenido principal -->
+        <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+            <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                <h1 class="h2">{% block admin_title %}Panel de Administración{% endblock %}</h1>
+            </div>
+            {% block admin_content %}{% endblock %}
+        </main>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .sidebar {
+        min-height: 100vh;
+        box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+    }
+    .nav-link.active {
+        background-color: #0066CC;
+        color: white !important;
+        border-radius: 5px;
+    }
+    .nav-link {
+        color: #333;
+        margin-bottom: 5px;
+    }
+    .nav-link:hover {
+        background-color: #E6F2FF;
+        border-radius: 5px;
+    }
+</style>
+{% endblock %}
+

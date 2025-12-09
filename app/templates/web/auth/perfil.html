@@ -1,0 +1,84 @@
+{% extends "web/base.html" %}
+
+{% block title %}Mi Perfil - Viajes Aventura{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0 fw-bold">
+                    <i class="bi bi-person-circle"></i> Mi Perfil
+                </h4>
+            </div>
+            <div class="card-body p-4">
+                <form method="POST" action="{{ url_for('auth.perfil') }}">
+                    <div class="row mb-4">
+                        <div class="col-md-6 mb-3">
+                            <label for="nombre_completo" class="form-label"><strong>Nombre Completo</strong></label>
+                            <input type="text" class="form-control" id="nombre_completo" name="nombre_completo" 
+                                   value="{{ usuario.nombre_completo }}" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label"><strong>RUT</strong></label>
+                            <input type="text" class="form-control" value="{{ usuario.rut }}" disabled>
+                            <small class="text-muted">El RUT no se puede modificar</small>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-4">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label"><strong>Email</strong></label>
+                            <input type="email" class="form-control" value="{{ usuario.email }}" disabled>
+                            <small class="text-muted">El email no se puede modificar</small>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="fecha_nacimiento" class="form-label"><strong>Fecha de Nacimiento</strong></label>
+                            <input type="date" class="form-control" id="fecha_nacimiento" name="fecha_nacimiento" 
+                                   value="{{ usuario.fecha_nacimiento.strftime('%Y-%m-%d') if usuario.fecha_nacimiento else '' }}" 
+                                   max="{{ fecha_maxima }}">
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-4">
+                        <div class="col-md-6 mb-3">
+                            <label for="telefono" class="form-label"><strong>Teléfono</strong></label>
+                            <input type="text" class="form-control" id="telefono" name="telefono" 
+                                   value="{{ usuario.telefono or '' }}" placeholder="Ej: +56912345678">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label"><strong>Rol</strong></label>
+                            <div>
+                                <span class="badge bg-purple">{{ usuario.rol|title }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <label class="form-label"><strong>Fecha de Registro</strong></label>
+                            <p class="mb-0">{{ usuario.fecha_registro.strftime('%d/%m/%Y') if usuario.fecha_registro else 'N/A' }}</p>
+                        </div>
+                    </div>
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-between">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-circle"></i> Guardar Cambios
+                        </button>
+                        {% if session.usuario_rol == 'admin' %}
+                        <a href="{{ url_for('admin.dashboard') }}" class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-left"></i> Atrás
+                        </a>
+                        {% else %}
+                        <a href="{{ url_for('web.index') }}" class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-left"></i> Atrás
+                        </a>
+                        {% endif %}
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

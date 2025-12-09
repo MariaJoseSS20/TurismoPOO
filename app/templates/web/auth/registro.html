@@ -1,0 +1,316 @@
+{% extends "web/base.html" %}
+
+{% block title %}Registro - Viajes Aventura{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6 col-lg-5">
+        <div class="card">
+            <div class="card-header bg-primary text-white text-center">
+                <h4 class="mb-0 fw-bold">
+                    <i class="bi bi-person-plus"></i> Crear Cuenta
+                </h4>
+            </div>
+            <div class="card-body p-4">
+                <form method="POST" id="formRegistro">
+                    <div class="mb-3">
+                        <label for="nombre_completo" class="form-label fw-bold text-primary">
+                            <i class="bi bi-person"></i> Nombre Completo:
+                        </label>
+                        <input type="text" class="form-control form-control-lg" id="nombre_completo" 
+                               name="nombre_completo" required placeholder="Juan Pérez">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="rut" class="form-label fw-bold text-primary">
+                            <i class="bi bi-card-text"></i> RUT: <span class="text-danger">*</span>
+                        </label>
+                        <input 
+                            type="text" 
+                            class="form-control form-control-lg" 
+                            id="rut" 
+                            name="rut" 
+                            required 
+                            placeholder="12.345.678-9" 
+                            maxlength="20"
+                            pattern="^\d{1,2}\.?\d{3}\.?\d{3}-[\dkK]$"
+                            title="Formato válido: 12.345.678-9">
+                        <div class="form-text">Formato: 12.345.678-9 (con guion y dígito verificador)</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="email" class="form-label fw-bold text-primary">
+                            <i class="bi bi-envelope"></i> Email:
+                        </label>
+                        <input type="email" class="form-control form-control-lg" id="email" 
+                               name="email" required placeholder="tu@email.com">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="fecha_nacimiento" class="form-label fw-bold text-primary">
+                            <i class="bi bi-calendar"></i> Fecha de Nacimiento:
+                        </label>
+                        <input type="text" class="form-control form-control-lg" id="fecha_nacimiento" 
+                               name="fecha_nacimiento" required 
+                               placeholder="dd/mm/yyyy"
+                               autocomplete="off">
+                        <div class="form-text">Debes ser mayor de 18 años. Selecciona tu fecha de nacimiento o ingrésala manualmente (dd/mm/yyyy)</div>
+                        <div id="error_fecha_nacimiento" class="text-danger mt-1" style="display: none; font-size: 0.875rem;">
+                            <i class="bi bi-exclamation-triangle"></i> <span id="mensaje_error_fecha"></span>
+                        </div>
+                        
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const fechaInput = document.getElementById('fecha_nacimiento');
+    const errorDiv = document.getElementById('error_fecha_nacimiento');
+    const mensajeError = document.getElementById('mensaje_error_fecha');
+    let flatpickrInstance = null;
+    
+    // Función para validar la edad (debe ser mayor de 18 años)
+    function validarEdad(fechaStr) {
+        // Obtener fecha mínima desde el template (hace 18 años)
+        const fechaMinima = '{{ fecha_minima }}';
+        
+        if (!fechaStr || !fechaMinima) return { valida: true };
+        
+        // Verificar formato dd/mm/yyyy
+        if (!fechaStr.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
+            return { valida: true }; // No validar si el formato no está completo
+        }
+        
+        // Parsear fecha ingresada
+        const parts = fechaStr.split('/');
+        const dia = parseInt(parts[0], 10);
+        const mes = parseInt(parts[1], 10) - 1; // Mes es 0-indexado
+        const año = parseInt(parts[2], 10);
+        
+        // Crear objeto Date
+        const fechaIngresada = new Date(año, mes, dia);
+        
+        // Verificar que la fecha sea válida
+        if (fechaIngresada.getFullYear() !== año || 
+            fechaIngresada.getMonth() !== mes || 
+            fechaIngresada.getDate() !== dia) {
+            return { valida: true }; // Fecha inválida, pero no es problema de edad
+        }
+        
+        // Parsear fecha mínima
+        const fechaMinParts = fechaMinima.split('-');
+        const fechaMin = new Date(
+            parseInt(fechaMinParts[0], 10),
+            parseInt(fechaMinParts[1], 10) - 1,
+            parseInt(fechaMinParts[2], 10)
+        );
+        
+        // Validar que la fecha no sea futura
+        const hoy = new Date();
+        hoy.setHours(0, 0, 0, 0);
+        if (fechaIngresada > hoy) {
+            return {
+                valida: false,
+                mensaje: 'La fecha de nacimiento no puede ser futura'
+            };
+        }
+        
+        // Validar edad (debe ser mayor de 18 años)
+        if (fechaIngresada > fechaMin) {
+            return {
+                valida: false,
+                mensaje: 'Debes ser mayor de 18 años para crear una cuenta'
+            };
+        }
+        
+        return { valida: true };
+    }
+    
+    // Función para mostrar/ocultar error
+    function mostrarError(mensaje) {
+        if (mensaje) {
+            mensajeError.textContent = mensaje;
+            errorDiv.style.display = 'block';
+            fechaInput.classList.add('is-invalid');
+        } else {
+            errorDiv.style.display = 'none';
+            fechaInput.classList.remove('is-invalid');
+        }
+    }
+    
+    // Formateo automático con barras mientras se escribe
+    if (fechaInput) {
+        let isFormatting = false; // Flag para evitar bucles infinitos
+        
+        fechaInput.addEventListener('input', function(e) {
+            if (isFormatting) return; // Evitar procesar si ya estamos formateando
+            isFormatting = true;
+            
+            // Obtener solo los números del valor actual (sin barras)
+            let value = e.target.value.replace(/\D/g, '');
+            
+            // Limitar a 8 dígitos (ddmmyyyy)
+            if (value.length > 8) {
+                value = value.substring(0, 8);
+            }
+            
+            // Si no hay números, limpiar el campo
+            if (value.length === 0) {
+                e.target.value = '';
+                mostrarError(null);
+                isFormatting = false;
+                return;
+            }
+            
+            // Agregar barras automáticamente después de 2 y 4 dígitos
+            let formatted = '';
+            if (value.length <= 2) {
+                // 1-2 dígitos: solo agregar barra si hay 2
+                formatted = value;
+                if (value.length === 2) {
+                    formatted += '/';
+                }
+            } else if (value.length <= 4) {
+                // 3-4 dígitos: agregar barra después del día
+                formatted = value.substring(0, 2) + '/' + value.substring(2);
+                if (value.length === 4) {
+                    formatted += '/';
+                }
+            } else {
+                // 5-8 dígitos: agregar ambas barras
+                formatted = value.substring(0, 2) + '/' + value.substring(2, 4) + '/' + value.substring(4);
+            }
+            
+            // Actualizar el valor solo si es diferente
+            if (e.target.value !== formatted) {
+                e.target.value = formatted;
+                
+                // Posicionar cursor al final
+                setTimeout(() => {
+                    e.target.setSelectionRange(formatted.length, formatted.length);
+                    isFormatting = false;
+                    
+                    // Validar edad cuando la fecha está completa (10 caracteres: dd/mm/yyyy)
+                    if (formatted.length === 10) {
+                        const validacion = validarEdad(formatted);
+                        mostrarError(validacion.valida ? null : validacion.mensaje);
+                    } else {
+                        mostrarError(null);
+                    }
+                }, 0);
+            } else {
+                isFormatting = false;
+                
+                // Validar edad cuando la fecha está completa
+                if (formatted.length === 10) {
+                    const validacion = validarEdad(formatted);
+                    mostrarError(validacion.valida ? null : validacion.mensaje);
+                } else {
+                    mostrarError(null);
+                }
+            }
+        });
+        
+        // Validar también cuando se pierde el foco
+        fechaInput.addEventListener('blur', function(e) {
+            if (e.target.value.length === 10) {
+                const validacion = validarEdad(e.target.value);
+                mostrarError(validacion.valida ? null : validacion.mensaje);
+            }
+        });
+    }
+    
+    // Inicializar Flatpickr específicamente para fecha de nacimiento (permitir fechas pasadas, mínimo 18 años)
+    if (typeof flatpickr !== 'undefined') {
+        // Obtener fecha mínima desde el template (hace 18 años)
+        const fechaMinima = '{{ fecha_minima }}';
+        
+        flatpickrInstance = flatpickr('#fecha_nacimiento', {
+            locale: 'es',
+            dateFormat: 'd/m/Y',
+            maxDate: 'today',
+            minDate: fechaMinima || null, // Fecha mínima: hace 18 años
+            allowInput: true,
+            clickOpens: true,
+            theme: 'default',
+            appendTo: document.body,
+            monthSelectorType: 'static',
+            animate: true,
+            altInput: false,
+            disableMobile: false,
+            time_24hr: false,
+            onChange: function(selectedDates, dateStr, instance) {
+                // Validar edad cuando se selecciona una fecha del calendario
+                if (dateStr && dateStr.length === 10) {
+                    const validacion = validarEdad(dateStr);
+                    mostrarError(validacion.valida ? null : validacion.mensaje);
+                }
+            },
+            parseDate: function(datestr, format) {
+                // Permitir entrada manual en formato dd/mm/yyyy
+                if (datestr && datestr.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
+                    const parts = datestr.split('/');
+                    const day = parseInt(parts[0], 10);
+                    const month = parseInt(parts[1], 10) - 1; // Mes es 0-indexado (0 = enero, 11 = diciembre)
+                    const year = parseInt(parts[2], 10);
+                    
+                    // Crear fecha al mediodía para evitar problemas de zona horaria
+                    const date = new Date(year, month, day, 12, 0, 0);
+                    
+                    // Verificar que la fecha creada corresponde exactamente a lo ingresado
+                    // Esto previene problemas de zona horaria que pueden cambiar el año
+                    if (date.getFullYear() === year && 
+                        date.getMonth() === month && 
+                        date.getDate() === day) {
+                        return date;
+                    }
+                }
+                return null;
+            }
+        });
+    }
+});
+</script>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="telefono" class="form-label fw-bold text-primary">
+                            <i class="bi bi-telephone"></i> Teléfono:
+                        </label>
+                        <input type="tel" class="form-control form-control-lg" id="telefono" 
+                               name="telefono" placeholder="+56 9 1234 5678" 
+                               maxlength="20" pattern="^(\+?56\s?)?[9]\s?\d{4}\s?\d{4}$|^\+?[1-9]\d{1,14}$">
+                        <div class="form-text">Opcional. Formato: +56 9 1234 5678 o formato internacional</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="password" class="form-label fw-bold text-primary">
+                            <i class="bi bi-lock"></i> Contraseña:
+                        </label>
+                        <input type="password" class="form-control form-control-lg" id="password" 
+                               name="password" required placeholder="••••••••" minlength="6">
+                        <div class="form-text">Mínimo 6 caracteres</div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label for="confirmar_password" class="form-label fw-bold text-primary">
+                            <i class="bi bi-lock-fill"></i> Confirmar Contraseña:
+                        </label>
+                        <input type="password" class="form-control form-control-lg" id="confirmar_password" 
+                               name="confirmar_password" required placeholder="••••••••" minlength="6">
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary w-100 btn-lg fw-bold mb-3">
+                        <i class="bi bi-person-plus"></i> Crear Cuenta
+                    </button>
+                </form>
+                
+                <div class="text-center">
+                    <p class="text-muted mb-0">¿Ya tienes cuenta?</p>
+                    <a href="{{ url_for('auth.login') }}" class="btn btn-outline-primary mt-2">
+                        <i class="bi bi-box-arrow-in-right"></i> Iniciar Sesión
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

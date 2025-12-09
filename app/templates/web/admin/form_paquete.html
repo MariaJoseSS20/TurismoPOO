@@ -1,0 +1,94 @@
+{% extends "web/admin/base_admin.html" %}
+
+{% block admin_title %}{% if paquete %}Editar{% else %}Crear{% endif %} Paquete{% endblock %}
+
+{% block admin_content %}
+<div class="row justify-content-center">
+    <div class="col-md-10">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">
+                    <i class="bi bi-{% if paquete %}pencil{% else %}plus-circle{% endif %}"></i> 
+                    {% if paquete %}Editar{% else %}Crear{% endif %} Paquete
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="nombre" class="form-label fw-bold">Nombre <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="nombre" name="nombre" 
+                                   value="{{ paquete.nombre if paquete else '' }}" required>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="origen" class="form-label fw-bold">Origen</label>
+                            <input type="text" class="form-control" id="origen" name="origen" 
+                                   value="Punta Arenas" readonly>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="fecha_inicio" class="form-label fw-bold">Fecha Inicio <span class="text-danger">*</span></label>
+                            <input type="date" class="form-control" id="fecha_inicio" name="fecha_inicio" 
+                                   value="{{ paquete.fecha_inicio.strftime('%Y-%m-%d') if paquete and paquete.fecha_inicio else '' }}" required>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="fecha_fin" class="form-label fw-bold">Fecha Fin <span class="text-danger">*</span></label>
+                            <input type="date" class="form-control" id="fecha_fin" name="fecha_fin" 
+                                   value="{{ paquete.fecha_fin.strftime('%Y-%m-%d') if paquete and paquete.fecha_fin else '' }}" required>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="precio_total" class="form-label fw-bold">Precio Total <span class="text-danger">*</span></label>
+                            <input type="number" class="form-control" id="precio_total" name="precio_total" 
+                                   value="{{ paquete.precio_total if paquete else '' }}" 
+                                   step="0.01" min="0" required>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="disponibles" class="form-label fw-bold">Cupos Disponibles</label>
+                            <input type="number" class="form-control" id="disponibles" name="disponibles" 
+                                   value="{{ paquete.disponibles if paquete else 20 }}" 
+                                   min="0" required>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Destinos</label>
+                        <div class="border rounded p-3" style="max-height: 200px; overflow-y: auto;">
+                            {% for destino in destinos %}
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="destinos" 
+                                       value="{{ destino.id }}" id="destino_{{ destino.id }}"
+                                       {% if paquete and destino.id in (destinos_seleccionados or []) %}checked{% endif %}>
+                                <label class="form-check-label" for="destino_{{ destino.id }}">
+                                    {{ destino.nombre }} - ${{ "{:,.0f}".format(destino.costo_base).replace(',', '.') }}
+                                </label>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% if not destinos %}
+                        <small class="text-muted">No hay destinos disponibles. Crea destinos primero.</small>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-circle"></i> Guardar
+                        </button>
+                        <a href="/paquetes" class="btn btn-secondary">
+                            <i class="bi bi-x-circle"></i> Cancelar
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

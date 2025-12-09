@@ -1,0 +1,95 @@
+{% extends "web/admin/base_admin.html" %}
+
+{% block admin_title %}Gestión de Reservas{% endblock %}
+
+{% block admin_content %}
+<div class="card mb-4">
+    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+        <h5 class="mb-0"><i class="bi bi-calendar-check"></i> Lista de Reservas</h5>
+        <span class="badge bg-light text-dark">{{ reservas|length }} reserva(s)</span>
+    </div>
+    <div class="card-body">
+        <form method="GET" class="row g-3 mb-4">
+            <div class="col-md-5">
+                <input type="text" class="form-control" name="buscar" placeholder="Buscar por usuario, email o paquete..." value="{{ busqueda }}">
+            </div>
+            <div class="col-md-4">
+                <select class="form-select" name="estado">
+                    <option value="">Todos los estados</option>
+                    <option value="confirmada" {% if estado_filtro == 'confirmada' %}selected{% endif %}>Confirmada</option>
+                    <option value="pendiente" {% if estado_filtro == 'pendiente' %}selected{% endif %}>Pendiente</option>
+                    <option value="cancelada" {% if estado_filtro == 'cancelada' %}selected{% endif %}>Cancelada</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="bi bi-search"></i> Buscar
+                </button>
+            </div>
+        </form>
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Usuario</th>
+                        <th>Paquete</th>
+                        <th>Destinos</th>
+                        <th>Fecha Reserva</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if reservas %}
+                    {% for reserva in reservas %}
+                    <tr>
+                        <td>{{ reserva.id }}</td>
+                        <td>{{ reserva.usuario.nombre_completo }}</td>
+                        <td>{{ reserva.paquete.nombre }}</td>
+                        <td>
+                            <small>
+                                {% if reserva.paquete.destinos %}
+                                    {% for pd in reserva.paquete.destinos %}
+                                        <span class="badge bg-info text-dark">{{ pd.destino.nombre }}</span>
+                                    {% endfor %}
+                                {% else %}
+                                    <span class="text-muted">Sin destinos</span>
+                                {% endif %}
+                            </small>
+                        </td>
+                        <td>{{ reserva.fecha_reserva.strftime('%d/%m/%Y %H:%M') if reserva.fecha_reserva else '-' }}</td>
+                        <td>
+                            <span class="badge {% if reserva.estado == 'confirmada' %}bg-success{% elif reserva.estado == 'cancelada' %}bg-danger{% else %}bg-warning{% endif %}">
+                                {{ reserva.estado }}
+                            </span>
+                        </td>
+                        <td>
+                            <div class="btn-group" role="group">
+                                <a href="{{ url_for('admin.editar_reserva', id=reserva.id) }}" class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-pencil"></i> Editar
+                                </a>
+                                <form method="POST" action="{{ url_for('admin.eliminar_reserva', id=reserva.id) }}" 
+                                      onsubmit="return confirm('¿Estás seguro de eliminar esta reserva?');" style="display: inline;">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">
+                                        <i class="bi bi-trash"></i> Eliminar
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    {% else %}
+                    <tr>
+                        <td colspan="7" class="text-center text-muted py-4">
+                            <i class="bi bi-search"></i> No se encontraron reservas con los criterios de búsqueda
+                        </td>
+                    </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

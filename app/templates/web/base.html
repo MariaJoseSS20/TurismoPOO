@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Turismo{% endblock %}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <!-- SweetAlert2 para mensajes modernos -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+    <!-- Flatpickr para calendarios modernos -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <style>
+        :root {
+            --primary-blue: #0066CC;
+            --dark-blue: #004499;
+            --light-blue: #F5F7FA;
+            --accent-blue: #3399FF;
+            --text-dark: #1A1A1A;
+            --text-gray: #666666;
+            --border-gray: #E0E0E0;
+        }
+        
+        * {
+            box-sizing: border-box;
+        }
+        
+        body {
+            background: #F8F9FA;
+            min-height: 100vh;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+            color: var(--text-dark);
+            line-height: 1.6;
+        }
+        
+        .navbar {
+            background: #FFFFFF !important;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            padding: 1rem 0;
+            border-bottom: 1px solid var(--border-gray);
+        }
+        
+        .navbar-brand {
+            color: var(--primary-blue) !important;
+            font-weight: 600;
+            font-size: 1.4rem;
+            letter-spacing: -0.5px;
+        }
+        
+        .nav-link {
+            color: var(--text-dark) !important;
+            font-weight: 400;
+            font-size: 0.95rem;
+            transition: color 0.2s ease;
+            padding: 0.5rem 1rem !important;
+        }
+        
+        .nav-link:hover {
+            color: var(--primary-blue) !important;
+        }
+        
+        .card {
+            border: 1px solid var(--border-gray);
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+            transition: all 0.3s ease;
+            background: #FFFFFF;
+            overflow: hidden;
+        }
+        
+        .card:hover {
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+            transform: translateY(-2px);
+            border-color: var(--primary-blue);
+        }
+        
+        .card-body {
+            padding: 2rem;
+        }
+        
+        .btn-primary {
+            background: var(--primary-blue);
+            border: none;
+            border-radius: 6px;
+            font-weight: 500;
+            padding: 0.75rem 1.5rem;
+            transition: all 0.2s ease;
+            font-size: 0.95rem;
+        }
+        
+        .btn-primary:hover {
+            background: var(--dark-blue);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 102, 204, 0.2);
+        }
+        
+        .text-primary {
+            color: var(--primary-blue) !important;
+        }
+        
+        .text-purple {
+            color: #6f42c1 !important;
+        }
+        
+        .bg-purple {
+            background-color: #6f42c1 !important;
+        }
+        
+        .bg-purple-pastel {
+            background-color: #e9d5ff !important;
+        }
+        
+        .text-purple-dark {
+            color: #5b21b6 !important;
+        }
+        
+        .text-coral {
+            color: #FF6B6B !important;
+        }
+        
+        .btn-pastel-green {
+            background-color: #a8e6cf !important;
+            border-color: #a8e6cf !important;
+            color: #2d5016 !important;
+        }
+        
+        .btn-pastel-green:hover {
+            background-color: #8dd4b8 !important;
+            border-color: #8dd4b8 !important;
+            color: #1f350f !important;
+        }
+        
+        .bg-primary {
+            background: var(--primary-blue) !important;
+        }
+        
+        .badge {
+            border-radius: 4px;
+            padding: 0.35rem 0.75rem;
+            font-weight: 500;
+            font-size: 0.85rem;
+        }
+        
+        .display-4 {
+            color: var(--text-dark);
+            font-weight: 600;
+            letter-spacing: -1px;
+        }
+        
+        .lead {
+            color: var(--text-gray);
+            font-weight: 400;
+        }
+        
+        .container {
+            max-width: 100%;
+            width: 100%;
+        }
+        
+        h1, h2, h3, h4, h5, h6 {
+            color: var(--text-dark);
+            font-weight: 600;
+            letter-spacing: -0.3px;
+        }
+        
+        .form-control {
+            border: 1px solid var(--border-gray);
+            border-radius: 6px;
+            padding: 0.75rem 1rem;
+            font-size: 0.95rem;
+            transition: all 0.2s ease;
+        }
+        
+        .form-control:focus {
+            border-color: var(--primary-blue);
+            box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.1);
+            outline: none;
+        }
+        
+        .form-label {
+            color: var(--text-dark);
+            font-weight: 500;
+            font-size: 0.9rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        /* Estilos para el rango de precio profesional */
+        .price-range-container {
+            position: relative;
+            padding: 0;
+        }
+        
+        .price-range-slider {
+            position: relative;
+            height: 4px;
+            background: var(--border-gray);
+            border-radius: 2px;
+            margin: 10px 0;
+        }
+        
+        .price-range-slider .range-track {
+            position: absolute;
+            height: 4px;
+            background: var(--primary-blue);
+            border-radius: 2px;
+            top: 0;
+        }
+        
+        .price-range-slider input[type="range"] {
+            position: absolute;
+            width: 100%;
+            height: 6px;
+            background: none;
+            pointer-events: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            top: 0;
+        }
+        
+        .price-range-slider input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            background: var(--primary-blue);
+            border: 2px solid #fff;
+            border-radius: 50%;
+            cursor: pointer;
+            pointer-events: all;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+            transition: all 0.2s;
+        }
+        
+        .price-range-slider input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.15);
+            box-shadow: 0 3px 6px rgba(0, 0, 0, 0.2);
+        }
+        
+        .price-range-slider input[type="range"]::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            background: var(--primary-blue);
+            border: 2px solid #fff;
+            border-radius: 50%;
+            cursor: pointer;
+            pointer-events: all;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+            transition: all 0.2s;
+        }
+        
+        .price-range-slider input[type="range"]::-moz-range-thumb:hover {
+            transform: scale(1.15);
+            box-shadow: 0 3px 6px rgba(0, 0, 0, 0.2);
+        }
+        
+        .price-range-values {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 8px;
+            gap: 8px;
+        }
+        
+        .price-value {
+            background: #fff;
+            border: 1px solid var(--border-gray);
+            border-radius: 6px;
+            padding: 0.4rem 0.6rem;
+            font-weight: 500;
+            color: var(--text-dark);
+            flex: 1;
+            text-align: center;
+            font-size: 0.85rem;
+        }
+        
+        .price-value-label {
+            font-size: 0.7rem;
+            color: var(--text-gray);
+            margin-bottom: 3px;
+            font-weight: 400;
+        }
+        
+        .price-range-inputs {
+            display: none;
+        }
+        
+        /* Estilos para Flatpickr moderno y minimalista */
+        .flatpickr-calendar {
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+            border: 1px solid #e0e0e0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #ffffff;
+        }
+        
+        .flatpickr-day.selected,
+        .flatpickr-day.startRange,
+        .flatpickr-day.endRange {
+            background: var(--primary-blue);
+            border-color: var(--primary-blue);
+            color: white;
+        }
+        
+        .flatpickr-day.selected:hover,
+        .flatpickr-day.startRange:hover,
+        .flatpickr-day.endRange:hover {
+            background: var(--dark-blue);
+            border-color: var(--dark-blue);
+        }
+        
+        .flatpickr-day:hover {
+            background: #f5f5f5;
+            border-color: #f5f5f5;
+        }
+        
+        .flatpickr-day.today {
+            border-color: var(--primary-blue);
+            color: var(--primary-blue);
+            font-weight: 600;
+        }
+        
+        .flatpickr-day.today:hover {
+            background: #f5f5f5;
+        }
+        
+        .flatpickr-months .flatpickr-month {
+            background: #ffffff;
+            color: #333;
+            border-radius: 12px 12px 0 0;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        
+        .flatpickr-weekdays {
+            background: #ffffff;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        
+        .flatpickr-weekday {
+            color: #666;
+            font-weight: 500;
+            font-size: 0.85rem;
+        }
+        
+        .flatpickr-current-month {
+            color: #333;
+            font-weight: 600;
+        }
+        
+        .flatpickr-prev-month,
+        .flatpickr-next-month {
+            color: #666;
+        }
+        
+        .flatpickr-prev-month:hover,
+        .flatpickr-next-month:hover {
+            background: #f5f5f5;
+            border-radius: 6px;
+        }
+        
+        .flatpickr-day {
+            color: #333;
+            border-radius: 6px;
+        }
+        
+        .flatpickr-day.flatpickr-disabled {
+            color: #ccc;
+        }
+        /* Ocultar controles nativos (spinners) de inputs tipo number */
+        input[type="number"]::-webkit-inner-spin-button,
+        input[type="number"]::-webkit-outer-spin-button {
+            -webkit-appearance: none !important;
+            appearance: none !important;
+            margin: 0 !important;
+            display: none !important;
+        }
+        
+        input[type="number"] {
+            -moz-appearance: textfield !important;
+        }
+        
+        /* Estilos específicos para el input de cantidad */
+        .cantidad-input::-webkit-inner-spin-button,
+        .cantidad-input::-webkit-outer-spin-button {
+            -webkit-appearance: none !important;
+            appearance: none !important;
+            margin: 0 !important;
+            display: none !important;
+        }
+        
+        .cantidad-input {
+            -moz-appearance: textfield !important;
+            -webkit-appearance: none !important;
+            appearance: none !important;
+        }
+    </style>
+    {% block extra_css %}{% endblock %}
+    <script>
+        // Función global para formatear precios en formato CLP (Chile)
+        function formatCLP(precio) {
+            if (precio === null || precio === undefined || isNaN(precio)) {
+                return '$0';
+            }
+            const num = parseFloat(precio);
+            // Formato CLP: separador de miles con punto, sin decimales
+            return '$' + Math.round(num).toLocaleString('es-CL');
+        }
+        
+        // Función global para debounce (evita llamadas excesivas)
+        let debounceTimer;
+        function debounce(func, delay) {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(func, delay);
+        }
+        
+        // Función global para configurar búsqueda en tiempo real
+        function setupBusquedaTiempoReal(filtroFunction) {
+            // Para campos de texto (origen, destino)
+            ['origen', 'destino'].forEach(id => {
+                const element = document.getElementById(id);
+                if (element) {
+                    element.addEventListener('input', () => debounce(filtroFunction, 300));
+                }
+            });
+            
+            // Para campos de fecha (disparan 'change' cuando se selecciona)
+            ['fecha_inicio', 'fecha_fin'].forEach(id => {
+                const element = document.getElementById(id);
+                if (element) {
+                    element.addEventListener('change', () => filtroFunction());
+                }
+            });
+            
+            // Los sliders de precio se manejan en initPriceSlider con callback
+        }
+        
+        // Función reutilizable para inicializar slider de precio (disponible globalmente)
+        function initPriceSlider(containerId, onSliderChange = null) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            
+            const minSlider = container.querySelector('#precio_min_slider');
+            const maxSlider = container.querySelector('#precio_max_slider');
+            const minDisplay = container.querySelector('#precio_min_display');
+            const maxDisplay = container.querySelector('#precio_max_display');
+            const minInput = container.querySelector('#precio_min');
+            const maxInput = container.querySelector('#precio_max');
+            const rangeTrack = container.querySelector('.range-track');
+            
+            if (!minSlider || !maxSlider) return;
+            
+            function updateSlider() {
+                const minVal = parseInt(minSlider.value);
+                const maxVal = parseInt(maxSlider.value);
+                
+                if (minVal > maxVal) {
+                    minSlider.value = maxVal;
+                    maxSlider.value = minVal;
+                }
+                
+                const min = parseInt(minSlider.value);
+                const max = parseInt(maxSlider.value);
+                
+                if (minDisplay) minDisplay.textContent = formatCLP(min);
+                if (maxDisplay) maxDisplay.textContent = formatCLP(max);
+                if (minInput) minInput.value = min;
+                if (maxInput) maxInput.value = max;
+                
+                if (rangeTrack) {
+                    const minPercent = (min / 50000) * 100;
+                    const maxPercent = (max / 50000) * 100;
+                    rangeTrack.style.left = minPercent + '%';
+                    rangeTrack.style.width = (maxPercent - minPercent) + '%';
+                }
+                
+                // Llamar al callback si existe (para filtrado en tiempo real)
+                if (onSliderChange && typeof onSliderChange === 'function') {
+                    debounce(onSliderChange, 300);
+                }
+            }
+            
+            minSlider.addEventListener('input', updateSlider);
+            maxSlider.addEventListener('input', updateSlider);
+            updateSlider();
+        }
+    </script>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-light sticky-top">
+        <div class="container">
+            <a class="navbar-brand" href="/">
+Viajes Aventura
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto align-items-center">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/">
+                            <i class="bi bi-house-fill text-coral"></i> Inicio
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/paquetes">
+                            <i class="bi bi-box-seam-fill text-primary"></i> Paquetes
+                        </a>
+                    </li>
+                    {% if session.usuario_rol == 'cliente' or not session.usuario_rol %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="/carrito" style="position: relative;">
+                            <i class="bi bi-cart-fill text-success"></i> Carrito
+                            <span id="carrito-contador" class="badge bg-danger rounded-pill" style="position: absolute; top: -5px; right: -5px; display: none; font-size: 0.7rem;">0</span>
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% if session.usuario_id %}
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown">
+                            <i class="bi bi-person-circle"></i> {{ session.usuario_nombre }}
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="{{ url_for('auth.perfil') }}">
+                                <i class="bi bi-person"></i> Mi Perfil
+                            </a></li>
+                            {% if session.usuario_rol == 'cliente' %}
+                            <li><a class="dropdown-item" href="{{ url_for('web.mis_reservas') }}">
+                                <i class="bi bi-calendar-check"></i> Mis Reservas
+                            </a></li>
+                            {% endif %}
+                        </ul>
+                    </li>
+                    <li class="nav-item ms-2">
+                        <a class="btn btn-outline-danger px-3 py-2" href="{{ url_for('auth.logout') }}" style="text-decoration: none;">
+                            <i class="bi bi-box-arrow-right"></i> Cerrar Sesión
+                        </a>
+                    </li>
+                    {% else %}
+                    <li class="nav-item ms-2">
+                        <a class="btn btn-primary text-white px-3 py-2" href="{{ url_for('auth.login') }}" style="text-decoration: none;">
+                            <i class="bi bi-box-arrow-in-right"></i> Iniciar Sesión
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+    </nav>
+    
+    <div class="container-fluid px-4 py-5" style="padding-top: 2rem; padding-bottom: 4rem;">
+        {% block content %}{% endblock %}
+    
+    <!-- Contenedor de Toasts -->
+    <div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 9999;">
+        <div id="toast-container"></div>
+    </div>
+    </div>
+    
+    <!-- Mensajes flash: success como toasts, otros como SweetAlert2 (excepto en login) -->
+    {% if request.endpoint != 'auth.login' %}
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div id="flash-messages" style="display: none;">
+                {% for category, message in messages %}
+                <div data-category="{{ category }}" data-message="{{ message|e }}"></div>
+                {% endfor %}
+            </div>
+            <script>
+                document.addEventListener('DOMContentLoaded', function() {
+                    var flashContainer = document.getElementById('flash-messages');
+                    if (flashContainer) {
+                        var messages = flashContainer.querySelectorAll('div[data-category]');
+                        messages.forEach(function(msgEl, index) {
+                            setTimeout(function() {
+                                var category = msgEl.getAttribute('data-category');
+                                var message = msgEl.getAttribute('data-message');
+                                
+                                // Mensajes de éxito como toasts
+                                if (category === 'success') {
+                                    mostrarToast(message, 'success', 'Éxito');
+                                } else {
+                                    // Otros mensajes como SweetAlert2
+                                    if (window.Swal) {
+                                        var iconMap = {
+                                            'error': 'error',
+                                            'danger': 'error',
+                                            'warning': 'warning',
+                                            'info': 'info'
+                                        };
+                                        Swal.fire({
+                                            icon: iconMap[category] || 'info',
+                                            title: category.charAt(0).toUpperCase() + category.slice(1),
+                                            text: message,
+                                            confirmButtonColor: '#0066CC',
+                                            timer: 3000,
+                                            timerProgressBar: true
+                                        });
+                                    }
+                                }
+                            }, index * 100);
+                        });
+                    }
+                });
+            </script>
+        {% endif %}
+    {% endwith %}
+    {% endif %}
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <!-- Flatpickr para calendarios modernos -->
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/es.js"></script>
+    <script>
+        // Función global para mostrar toasts
+        function mostrarToast(mensaje, tipo = 'success', titulo = '') {
+            const toastContainer = document.getElementById('toast-container');
+            if (!toastContainer) return;
+            
+            const toastId = 'toast-' + Date.now();
+            const bgColor = tipo === 'success' ? 'bg-success' : tipo === 'error' ? 'bg-danger' : 'bg-info';
+            const icon = tipo === 'success' ? 'bi-check-circle-fill' : tipo === 'error' ? 'bi-exclamation-triangle-fill' : 'bi-info-circle-fill';
+            
+            const toastHTML = `
+                <div id="${toastId}" class="toast align-items-center text-white ${bgColor} border-0" role="alert" aria-live="assertive" aria-atomic="true">
+                    <div class="d-flex">
+                        <div class="toast-body">
+                            ${titulo ? `<strong>${titulo}</strong><br>` : ''}
+                            ${mensaje}
+                        </div>
+                        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+                    </div>
+                </div>
+            `;
+            
+            toastContainer.insertAdjacentHTML('beforeend', toastHTML);
+            const toastElement = document.getElementById(toastId);
+            const toast = new bootstrap.Toast(toastElement, {
+                autohide: true,
+                delay: 3000
+            });
+            toast.show();
+            
+            // Remover el elemento después de que se oculte
+            toastElement.addEventListener('hidden.bs.toast', function() {
+                toastElement.remove();
+            });
+        }
+        
+        // Función global para actualizar contador del carrito (solo para clientes)
+        async function actualizarContadorCarritoGlobal() {
+            // Solo actualizar si el usuario es cliente o no está logueado
+            const usuarioRol = '{{ session.usuario_rol|default("") }}';
+            if (usuarioRol === 'admin') {
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/carrito/cantidad');
+                const data = await response.json();
+                const contador = document.getElementById('carrito-contador');
+                if (contador) {
+                    if (data.cantidad > 0) {
+                        contador.textContent = data.cantidad;
+                        contador.style.display = 'inline-block';
+                    } else {
+                        contador.style.display = 'none';
+                    }
+                }
+            } catch (error) {
+                console.error('Error al actualizar contador:', error);
+            }
+        }
+        
+        // Función global para agregar items al carrito (versión básica sin cantidad)
+        async function agregarAlCarrito(tipo, id) {
+            try {
+                const response = await fetch('/api/carrito/agregar', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ tipo, id, cantidad: 1 })
+                });
+                const data = await response.json();
+                
+                if (response.ok) {
+                    mostrarToast(data.message, 'success', '¡Agregado!');
+                    // Actualizar contador con la cantidad de la respuesta
+                    if (data.cantidad !== undefined) {
+                        const contador = document.getElementById('carrito-contador');
+                        if (contador) {
+                            if (data.cantidad > 0) {
+                                contador.textContent = data.cantidad;
+                                contador.style.display = 'inline-block';
+                            } else {
+                                contador.style.display = 'none';
+                            }
+                        }
+                    } else {
+                        actualizarContadorCarritoGlobal();
+                    }
+                } else {
+                    mostrarToast(data.error || 'Error al agregar al carrito', 'error', 'Error');
+                }
+            } catch (error) {
+                mostrarToast('Error de conexión', 'error', 'Error');
+            }
+        }
+        
+        // Actualizar contador al cargar la página
+        document.addEventListener('DOMContentLoaded', function() {
+            actualizarContadorCarritoGlobal();
+            
+            // Inicializar Flatpickr en todos los campos de fecha EXCEPTO fecha_nacimiento
+            if (typeof flatpickr !== 'undefined') {
+                flatpickr('input[type="date"]:not(#fecha_nacimiento)', {
+                    locale: 'es',
+                    dateFormat: 'Y-m-d',
+                    minDate: 'today',
+                    allowInput: false,
+                    clickOpens: true,
+                    theme: 'default',
+                    appendTo: document.body,
+                    monthSelectorType: 'static',
+                    animate: true
+                });
+            }
+        });
+    </script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

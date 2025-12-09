@@ -1,0 +1,949 @@
+{% extends "web/base.html" %}
+
+{% block title %}Paquetes - Viajes Aventura{% endblock %}
+
+{% block content %}
+<div class="card mb-5" style="background: linear-gradient(135deg, var(--primary-blue) 0%, var(--dark-blue) 100%); border: none;">
+    <div class="card-body p-5 text-center text-white">
+        <div class="d-flex justify-content-between align-items-center">
+            <div class="flex-fill"></div>
+            <div class="flex-fill text-center">
+                <h1 class="display-4 fw-semibold mb-3 text-white">
+                    <i class="bi bi-box-seam-fill"></i> Paquetes Turísticos
+                </h1>
+                <p class="lead mb-0 text-white-50">Encuentra el paquete perfecto para tu próxima aventura</p>
+            </div>
+            <div class="flex-fill text-end">
+                {% if session.usuario_rol == 'admin' %}
+                <button type="button" class="btn btn-light btn-lg" data-bs-toggle="modal" data-bs-target="#modalCrearPaquete">
+                    <i class="bi bi-plus-circle"></i> Crear Paquete
+                </button>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card mb-3">
+    <div class="card-body p-4">
+        <form id="form-buscar-paquetes" class="row g-3 align-items-end">
+            <div class="col-md-2">
+                <label class="form-label fw-bold text-primary small">Origen</label>
+                <input type="text" class="form-control" id="origen" placeholder="Ej: Santiago" value="Punta Arenas">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label fw-bold text-primary small"><i class="bi bi-geo-alt text-danger"></i> Destino</label>
+                <input type="text" class="form-control" id="destino" placeholder="Ej: París">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label fw-bold text-primary small"><i class="bi bi-calendar3"></i> Fecha Inicio</label>
+                <input type="date" class="form-control" id="fecha_inicio" placeholder="Seleccionar fecha">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label fw-bold text-primary small"><i class="bi bi-calendar-check"></i> Fecha Fin</label>
+                <input type="date" class="form-control" id="fecha_fin" placeholder="Seleccionar fecha">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label fw-bold text-primary small"><i class="bi bi-currency-dollar"></i> Rango de Precio</label>
+                <div class="price-range-container" id="price-range-paquetes">
+                    <div class="price-range-slider">
+                        <div class="range-track"></div>
+                        <input type="range" id="precio_min_slider" min="0" max="50000" step="1000" value="0">
+                        <input type="range" id="precio_max_slider" min="0" max="50000" step="1000" value="50000">
+                    </div>
+                    <div class="price-range-values">
+                        <div class="flex-fill">
+                            <div class="price-value-label">Mínimo</div>
+                            <div class="price-value" id="precio_min_display">$0</div>
+                        </div>
+                        <div class="flex-fill">
+                            <div class="price-value-label">Máximo</div>
+                            <div class="price-value" id="precio_max_display">$50.000</div>
+                        </div>
+                    </div>
+                    <input type="hidden" id="precio_min" value="0">
+                    <input type="hidden" id="precio_max" value="50000">
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div id="paquetes-container">
+    <div class="text-center py-3">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Cargando...</span>
+        </div>
+        <p class="mt-2 text-muted small">Cargando paquetes...</p>
+    </div>
+</div>
+
+<script>
+const esAdmin = '{{ session.usuario_rol|default("") }}' === 'admin';
+let todosPaquetes = [];
+
+async function cargarPaquetes() {
+    try {
+        const response = await fetch('/api/paquetes');
+        if (!response.ok) {
+            throw new Error(`Error ${response.status}: ${response.statusText}`);
+        }
+        const paquetes = await response.json();
+        
+        // Verificar si es un error
+        if (paquetes.error) {
+            throw new Error(paquetes.error);
+        }
+        
+        todosPaquetes = paquetes;
+        filtrarPaquetes();
+    } catch (error) {
+        console.error('Error al cargar paquetes:', error);
+        document.getElementById('paquetes-container').innerHTML = `
+            <div class="alert alert-danger">
+                <i class="bi bi-exclamation-triangle"></i> Error: ${error.message}
+            </div>
+        `;
+    }
+}
+
+function filtrarPaquetes() {
+    if (!todosPaquetes || todosPaquetes.length === 0) {
+        const container = document.getElementById('paquetes-container');
+        container.innerHTML = '<div class="card"><div class="card-body p-5"><p class="text-muted mb-0">No hay paquetes disponibles</p></div></div>';
+            return;
+        }
+        
+    const origenEl = document.getElementById('origen');
+    const destinoEl = document.getElementById('destino');
+    const fechaInicioEl = document.getElementById('fecha_inicio');
+    const fechaFinEl = document.getElementById('fecha_fin');
+    const precioMinSlider = document.getElementById('precio_min_slider');
+    const precioMaxSlider = document.getElementById('precio_max_slider');
+    
+    const origen = origenEl ? origenEl.value.toLowerCase() : '';
+    const destino = destinoEl ? destinoEl.value.toLowerCase() : '';
+    const fechaInicio = fechaInicioEl ? fechaInicioEl.value : '';
+    const fechaFin = fechaFinEl ? fechaFinEl.value : '';
+    const precioMin = precioMinSlider ? parseFloat(precioMinSlider.value) : 0;
+    const precioMax = precioMaxSlider ? parseFloat(precioMaxSlider.value) : 50000;
+    
+    const paquetesFiltrados = todosPaquetes.filter(p => {
+        if (origen && (!p.origen || !p.origen.toLowerCase().includes(origen))) return false;
+        if (destino) {
+            const destinosStr = p.destinos.map(d => d.nombre).join(' ').toLowerCase();
+            if (!destinosStr.includes(destino)) return false;
+        }
+        if (fechaInicio) {
+            const fechaInicioPaquete = new Date(p.fecha_inicio);
+            const fechaInicioFiltro = new Date(fechaInicio);
+            if (fechaInicioPaquete < fechaInicioFiltro) return false;
+        }
+        if (fechaFin) {
+            const fechaFinPaquete = new Date(p.fecha_fin);
+            const fechaFinFiltro = new Date(fechaFin);
+            if (fechaFinPaquete > fechaFinFiltro) return false;
+        }
+        if (p.precio_total < precioMin || p.precio_total > precioMax) return false;
+        return true;
+    });
+    
+    const container = document.getElementById('paquetes-container');
+    if (!container) return;
+    
+    if (!paquetesFiltrados.length) {
+        container.innerHTML = '<div class="card"><div class="card-body p-5"><p class="text-muted mb-0">No se encontraron paquetes con los filtros aplicados</p></div></div>';
+        return;
+    }
+    
+        let cardsHTML = '<div class="row g-4">';
+    paquetesFiltrados.forEach(paquete => {
+            const fechaInicio = new Date(paquete.fecha_inicio).toLocaleDateString('es-ES');
+            const fechaFin = new Date(paquete.fecha_fin).toLocaleDateString('es-ES');
+            const dias = Math.ceil((new Date(paquete.fecha_fin) - new Date(paquete.fecha_inicio)) / (1000 * 60 * 60 * 24));
+            const destinos = paquete.destinos && paquete.destinos.length > 0 ? paquete.destinos.map(d => d.nombre).join(', ') : 'Sin destinos';
+            
+            // Debug: verificar destinos (comentado para producción)
+            // console.log('Paquete:', paquete.nombre, 'Destinos:', paquete.destinos);
+            
+            cardsHTML += `
+                <div class="col-md-6 col-lg-4 col-xl-3 mb-4">
+                    <div class="card shadow-sm h-100 border-0 rounded-3">
+                        <div class="card-body p-4 d-flex flex-column">
+                            <div class="d-flex justify-content-between align-items-start mb-3">
+                                <h5 class="card-title text-dark fw-bold mb-0">${paquete.nombre}</h5>
+                                <span class="badge ${paquete.disponibles > 0 ? 'badge-cupos' : 'bg-danger'} ms-2">
+                                    ${paquete.disponibles > 0 ? `${paquete.disponibles} cupos` : 'Agotado'}
+                                </span>
+                            </div>
+                            
+                            <div class="mb-3 flex-grow-1">
+                                <div class="d-flex align-items-center justify-content-between mb-3 p-3 rounded bg-light border">
+                                    <div class="d-flex align-items-center flex-fill">
+                                        <div>
+                                            <small class="text-muted d-block">Origen</small>
+                                            <strong>${paquete.origen || 'N/A'}</strong>
+                                        </div>
+                                    </div>
+                                    <i class="bi bi-arrow-right text-primary mx-3"></i>
+                                    <div class="d-flex align-items-center flex-fill">
+                                        <i class="bi bi-geo-alt-fill text-danger me-2"></i>
+                                        <div>
+                                            <small class="text-muted d-block">Destinos</small>
+                                            <strong>${destinos}</strong>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                ${paquete.destinos && paquete.destinos.length > 0 ? `
+                                    <div class="mb-3">
+                                        ${paquete.destinos.map(destino => {
+                                            const actividadesArray = Array.isArray(destino.actividades) ? destino.actividades : (destino.actividades ? destino.actividades.split(',').map(a => a.trim()) : []);
+                                            const descripcion = destino.descripcion || '';
+                                            return `
+                                                <div class="mb-3">
+                                                    ${actividadesArray.length > 0 ? `
+                                                        <div class="mb-2">
+                                                            <small class="text-muted d-block mb-2">
+                                                                <i class="bi bi-list-check text-warning me-1"></i> Actividades
+                                                            </small>
+                                                            <div class="d-flex flex-wrap gap-1">
+                                                                ${actividadesArray.slice(0, 3).map(act => `<span class="badge bg-purple-pastel text-purple-dark small">${act}</span>`).join('')}
+                                                                ${actividadesArray.length > 3 ? `<span class="badge bg-secondary-subtle text-secondary small">+${actividadesArray.length - 3}</span>` : ''}
+                                                            </div>
+                                                        </div>
+                                                    ` : ''}
+                                                    
+                                                    ${descripcion ? `
+                                                        <div class="mb-0">
+                                                            <p class="text-muted small mb-0 lh-sm">${descripcion}</p>
+                                                        </div>
+                                                    ` : ''}
+                                                </div>
+                                            `;
+                                        }).join('')}
+                                    </div>
+                                ` : ''}
+                                
+                                <div class="d-flex align-items-center justify-content-between p-2 rounded bg-light mb-2">
+                                    <div class="d-flex align-items-center">
+                                    <i class="bi bi-clock text-primary me-2"></i>
+                                    <div>
+                                        <small class="text-muted d-block">Duración</small>
+                                            <strong class="small">${dias} días</strong>
+                                        </div>
+                                    </div>
+                                    <div class="d-flex align-items-center">
+                                    <i class="bi bi-calendar3 text-primary me-2"></i>
+                                    <div>
+                                        <small class="text-muted d-block">Fechas</small>
+                                            <strong class="small">${fechaInicio} - ${fechaFin}</strong>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="mt-auto border-top pt-3">
+                                <div class="text-center mb-3">
+                                    <small class="text-muted d-block mb-1">Precio Total</small>
+                                    <h3 class="text-primary fw-bold mb-0">${formatCLP(paquete.precio_total)}</h3>
+                                    </div>
+                                ${esAdmin ? `
+                                    <div class="d-flex gap-2 mb-3">
+                                        <button class="btn btn-primary flex-fill" onclick="editarPaquete(${paquete.id})">
+                                            <i class="bi bi-pencil me-2"></i> Editar
+                                        </button>
+                                        <button class="btn btn-danger flex-fill" onclick="eliminarPaquete(${paquete.id}, '${paquete.nombre.replace(/'/g, "\\'")}')">
+                                            <i class="bi bi-trash me-2"></i> Eliminar
+                                        </button>
+                                    </div>
+                                ` : ''}
+                                ${!esAdmin && paquete.disponibles > 0 ? 
+                                    `<div class="mb-3">
+                                        <label class="form-label small fw-bold text-muted mb-2">Cantidad</label>
+                                        <div class="d-flex align-items-center justify-content-center gap-2">
+                                            <button type="button" class="btn btn-outline-primary btn-sm cantidad-btn" 
+                                                    onclick="cambiarCantidad('paquete-${paquete.id}', -1, ${paquete.disponibles})" 
+                                                    id="btn-restar-${paquete.id}"
+                                                    disabled>
+                                                <i class="bi bi-dash-lg"></i>
+                                            </button>
+                                            <input type="number" 
+                                                   class="form-control text-center cantidad-input" 
+                                                   id="cantidad-paquete-${paquete.id}" 
+                                                   value="1" 
+                                                   min="1" 
+                                                   max="${paquete.disponibles}" 
+                                                   readonly
+                                                   style="max-width: 80px; -webkit-appearance: none !important; -moz-appearance: textfield !important; appearance: none !important;">
+                                            <button type="button" class="btn btn-outline-primary btn-sm cantidad-btn" 
+                                                    onclick="cambiarCantidad('paquete-${paquete.id}', 1, ${paquete.disponibles})" 
+                                                    id="btn-sumar-${paquete.id}"
+                                                    ${paquete.disponibles <= 1 ? 'disabled' : ''}>
+                                                <i class="bi bi-plus-lg"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <button class="btn btn-success w-100" onclick="agregarAlCarritoConCantidad('paquete', ${paquete.id})">
+                                        <i class="bi bi-cart-plus-fill me-2"></i> Agregar al Carrito
+                                    </button>` : 
+                                    !esAdmin && paquete.disponibles === 0 ?
+                                    '<button class="btn btn-secondary w-100" disabled>Agotado</button>' : ''
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        cardsHTML += '</div>';
+        container.innerHTML = cardsHTML;
+}
+
+function init() {
+    initPriceSlider('price-range-paquetes', filtrarPaquetes);
+    setupBusquedaTiempoReal(filtrarPaquetes);
+    cargarPaquetes();
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+} else {
+    init();
+}
+
+function cambiarCantidad(prefijo, cambio, maxDisponibles) {
+    const inputId = `cantidad-${prefijo}`;
+    const input = document.getElementById(inputId);
+    if (!input) {
+        console.error('No se encontró el input:', inputId);
+        return;
+    }
+    
+    let cantidadActual = parseInt(input.value) || 1;
+    let nuevaCantidad = cantidadActual + cambio;
+    
+    // Validar límites
+    if (nuevaCantidad < 1) nuevaCantidad = 1;
+    if (nuevaCantidad > maxDisponibles) nuevaCantidad = maxDisponibles;
+    
+    input.value = nuevaCantidad;
+    
+    // Actualizar estado de botones
+    const paqueteId = prefijo.replace('paquete-', '');
+    const btnRestar = document.getElementById(`btn-restar-${paqueteId}`);
+    const btnSumar = document.getElementById(`btn-sumar-${paqueteId}`);
+    
+    if (btnRestar) {
+        btnRestar.disabled = nuevaCantidad <= 1;
+    }
+    if (btnSumar) {
+        btnSumar.disabled = nuevaCantidad >= maxDisponibles;
+    }
+}
+
+async function agregarAlCarritoConCantidad(tipo, id) {
+    try {
+        // Obtener la cantidad seleccionada
+        const inputId = `cantidad-${tipo}-${id}`;
+        const cantidadInput = document.getElementById(inputId);
+        
+        if (!cantidadInput) {
+            console.error('No se encontró el input de cantidad:', inputId);
+            mostrarToast('Error: No se pudo obtener la cantidad', 'error', 'Error');
+            return;
+        }
+        
+        // Leer el valor directamente del input
+        const inputValue = cantidadInput.value;
+        const cantidad = parseInt(inputValue) || 1;
+        
+        // Validar cantidad
+        if (cantidad < 1) {
+            mostrarToast('La cantidad debe ser al menos 1', 'error', 'Error');
+            return;
+        }
+        
+        // Agregar al carrito con la cantidad especificada
+        const response = await fetch('/api/carrito/agregar', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ tipo, id, cantidad })
+        });
+        const data = await response.json();
+        
+        if (response.ok) {
+            mostrarToast(data.message, 'success', '¡Agregado!');
+            // Actualizar contador con la cantidad de la respuesta
+            if (data.cantidad !== undefined) {
+                const contador = document.getElementById('carrito-contador');
+                if (contador) {
+                    if (data.cantidad > 0) {
+                        contador.textContent = data.cantidad;
+                        contador.style.display = 'inline-block';
+                    } else {
+                        contador.style.display = 'none';
+                    }
+                }
+            } else {
+                actualizarContadorCarrito();
+            }
+            
+            // Resetear cantidad a 1 después de agregar
+            if (cantidadInput) {
+                cantidadInput.value = 1;
+                const paqueteId = id;
+                const btnRestar = document.getElementById(`btn-restar-${paqueteId}`);
+                const btnSumar = document.getElementById(`btn-sumar-${paqueteId}`);
+                if (btnRestar) btnRestar.disabled = true;
+                if (btnSumar) {
+                    // Necesitamos obtener el max disponible del paquete
+                    const paquete = todosPaquetes.find(p => p.id === id);
+                    if (paquete) {
+                        btnSumar.disabled = paquete.disponibles <= 1;
+                    }
+                }
+            }
+        } else {
+            mostrarToast(data.error || 'Error al agregar al carrito', 'error', 'Error');
+        }
+    } catch (error) {
+        mostrarToast('Error de conexión', 'error', 'Error');
+    }
+}
+
+// Usar la función global del contador
+function actualizarContadorCarrito() {
+    if (typeof actualizarContadorCarritoGlobal === 'function') {
+        actualizarContadorCarritoGlobal();
+    }
+}
+
+// Función para editar paquete
+async function editarPaquete(paqueteId) {
+    try {
+        // Cargar datos del paquete
+        const response = await fetch(`/api/paquetes/${paqueteId}`);
+        if (!response.ok) throw new Error('Error al cargar el paquete');
+        const paquete = await response.json();
+        
+        // Cargar destinos
+        const destinosResponse = await fetch('/admin/api/destinos');
+        if (!destinosResponse.ok) throw new Error('Error al cargar destinos');
+        const destinos = await destinosResponse.json();
+        
+        // Guardar destinos para cálculo de precio
+        destinosDataEditar = destinos;
+        
+        // Prellenar formulario del modal de edición
+        document.getElementById('modal_editar_nombre').value = paquete.nombre || '';
+        document.getElementById('modal_editar_origen').value = 'Punta Arenas';
+        document.getElementById('modal_editar_fecha_inicio').value = paquete.fecha_inicio || '';
+        document.getElementById('modal_editar_fecha_fin').value = paquete.fecha_fin || '';
+        document.getElementById('modal_editar_disponibles').value = paquete.disponibles || '';
+        
+        // Cargar destinos en el contenedor
+        const destinosContainer = document.getElementById('destinos-container-editar');
+        destinosContainer.innerHTML = '';
+        destinos.forEach(destino => {
+            // Si el paquete tiene destinos, seleccionar el primero (ya que solo puede haber uno)
+            const isSelected = paquete.destinos.length > 0 && paquete.destinos[0].id === destino.id;
+            destinosContainer.innerHTML += `
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="destino" 
+                           value="${destino.id}" id="modal_editar_destino_${destino.id}"
+                           ${isSelected ? 'checked' : ''} required>
+                    <label class="form-check-label" for="modal_editar_destino_${destino.id}">
+                        ${destino.nombre} - ${formatCLP(destino.costo_base)}
+                    </label>
+                </div>
+            `;
+        });
+        
+        // Agregar event listeners para calcular precio
+        destinosContainer.querySelectorAll('input[type="radio"]').forEach(radio => {
+            radio.addEventListener('change', calcularPrecioTotalEditar);
+        });
+        
+        // Agregar event listeners para fechas (solo una vez)
+        const fechaInicioInput = document.getElementById('modal_editar_fecha_inicio');
+        const fechaFinInput = document.getElementById('modal_editar_fecha_fin');
+        
+        // Remover listeners anteriores si existen
+        fechaInicioInput.replaceWith(fechaInicioInput.cloneNode(true));
+        fechaFinInput.replaceWith(fechaFinInput.cloneNode(true));
+        
+        // Agregar nuevos listeners
+        document.getElementById('modal_editar_fecha_inicio').addEventListener('change', calcularPrecioTotalEditar);
+        document.getElementById('modal_editar_fecha_fin').addEventListener('change', calcularPrecioTotalEditar);
+        
+        // Calcular precio inicial
+        calcularPrecioTotalEditar();
+        
+        // Guardar ID del paquete en el formulario
+        document.getElementById('formEditarPaquete').dataset.paqueteId = paqueteId;
+        
+        // Inicializar Flatpickr para las fechas
+        if (typeof flatpickr !== 'undefined') {
+            flatpickr('#modal_editar_fecha_inicio', {
+                locale: 'es',
+                dateFormat: 'Y-m-d',
+                minDate: 'today',
+                allowInput: false,
+                clickOpens: true,
+                theme: 'light',
+                appendTo: document.body,
+                monthSelectorType: 'static',
+                animate: true
+            });
+            flatpickr('#modal_editar_fecha_fin', {
+                locale: 'es',
+                dateFormat: 'Y-m-d',
+                minDate: 'today',
+                allowInput: false,
+                clickOpens: true,
+                theme: 'light',
+                appendTo: document.body,
+                monthSelectorType: 'static',
+                animate: true
+            });
+        }
+        
+        new bootstrap.Modal(document.getElementById('modalEditarPaquete')).show();
+    } catch (error) {
+        Swal.fire('Error', 'No se pudo cargar el paquete para editar', 'error');
+    }
+}
+
+async function eliminarPaquete(id, nombre) {
+    const result = await Swal.fire({
+        title: '¿Estás seguro?',
+        text: `¿Deseas eliminar "${nombre}"?`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#dc3545',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Sí, eliminar',
+        cancelButtonText: 'Cancelar'
+    });
+    
+    if (result.isConfirmed) {
+        try {
+            const response = await fetch(`/admin/paquetes/eliminar/${id}/api`, {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' }
+            });
+            const data = await response.json();
+            
+            if (response.ok) {
+                Swal.fire('¡Eliminado!', data.message, 'success').then(() => cargarPaquetes());
+            } else {
+                Swal.fire('Error', data.error || 'Error al eliminar el paquete', 'error');
+            }
+        } catch (error) {
+            Swal.fire('Error', 'Error de conexión', 'error');
+        }
+    }
+}
+</script>
+
+{% if session.usuario_rol == 'admin' %}
+<!-- Modal para Crear Paquete -->
+<div class="modal fade" id="modalCrearPaquete" tabindex="-1" aria-labelledby="modalCrearPaqueteLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="modalCrearPaqueteLabel">
+                    <i class="bi bi-plus-circle"></i> Crear Paquete
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="formCrearPaquete">
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="modal_nombre" class="form-label fw-bold">Nombre <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="modal_nombre" name="nombre" required>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="modal_origen" class="form-label fw-bold">Origen <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="modal_origen" name="origen" value="Punta Arenas" readonly required>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="modal_fecha_inicio" class="form-label fw-bold">Fecha Inicio <span class="text-danger">*</span></label>
+                            <input type="date" class="form-control" id="modal_fecha_inicio" name="fecha_inicio" required>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="modal_fecha_fin" class="form-label fw-bold">Fecha Fin <span class="text-danger">*</span></label>
+                            <input type="date" class="form-control" id="modal_fecha_fin" name="fecha_fin" required>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="modal_precio_total" class="form-label fw-bold">Precio Total <span class="text-danger">*</span></label>
+                            <input type="number" class="form-control" id="modal_precio_total" name="precio_total" step="0.01" min="0" readonly required>
+                            <small class="text-muted"><i class="bi bi-info-circle"></i> Se calcula automáticamente según destino y fechas</small>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="modal_disponibles" class="form-label fw-bold">Cupos Disponibles <span class="text-danger">*</span></label>
+                            <input type="number" class="form-control" id="modal_disponibles" name="disponibles" min="0" value="20" required>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Destino <span class="text-danger">*</span></label>
+                        <div class="border rounded p-3 overflow-auto" style="max-height: 200px;" id="destinos-container">
+                            <div class="text-center text-muted">
+                                <div class="spinner-border spinner-border-sm" role="status">
+                                    <span class="visually-hidden">Cargando...</span>
+                                </div>
+                                <p class="mt-2 mb-0">Cargando destinos...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="bi bi-x-circle"></i> Cancelar
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-check-circle"></i> Crear Paquete
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+// Variable global para almacenar destinos con sus costos
+let destinosData = [];
+
+// Variable global para almacenar destinos en modal de edición
+let destinosDataEditar = [];
+
+// Función para determinar si una fecha está en temporada alta en Magallanes
+// Temporada alta: Octubre (10) a Abril (4)
+// Temporada baja: Mayo (5) a Septiembre (9)
+function esTemporadaAlta(fecha) {
+    const mes = fecha.getMonth() + 1; // getMonth() retorna 0-11, sumamos 1 para 1-12
+    return mes >= 10 || mes <= 4; // Octubre (10) a Abril (4)
+}
+
+// Función para calcular el precio total (modal crear)
+function calcularPrecioTotal() {
+    const fechaInicio = document.getElementById('modal_fecha_inicio').value;
+    const fechaFin = document.getElementById('modal_fecha_fin').value;
+    const destinoSeleccionado = document.querySelector('#destinos-container input[type="radio"]:checked');
+    const precioInput = document.getElementById('modal_precio_total');
+    
+    if (!fechaInicio || !fechaFin || !destinoSeleccionado) {
+        precioInput.value = '';
+        return;
+    }
+    
+    const fechaInicioDate = new Date(fechaInicio);
+    const fechaFinDate = new Date(fechaFin);
+    
+    if (fechaFinDate < fechaInicioDate) {
+        precioInput.value = '';
+        return;
+    }
+    
+    // Calcular días de viaje (incluyendo el día de inicio y fin)
+    const diffTime = Math.abs(fechaFinDate - fechaInicioDate);
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+    
+    // Obtener el costo base del destino seleccionado
+    const destinoId = parseInt(destinoSeleccionado.value);
+    const destino = destinosData.find(d => d.id === destinoId);
+    
+    if (!destino) {
+        precioInput.value = '';
+        return;
+    }
+    
+    // Calcular precio base: costo_base * días
+    const precioBase = destino.costo_base * diffDays;
+    
+    // Determinar temporada basada en la fecha de inicio
+    const temporadaAlta = esTemporadaAlta(fechaInicioDate);
+    
+    // Aplicar multiplicador según temporada
+    // Temporada alta: +20% (multiplicador 1.2)
+    // Temporada baja: -20% (multiplicador 0.8)
+    const multiplicador = temporadaAlta ? 1.2 : 0.8;
+    const precioTotal = precioBase * multiplicador;
+    
+    precioInput.value = precioTotal.toFixed(2);
+}
+
+// Función para calcular el precio total (modal editar)
+function calcularPrecioTotalEditar() {
+    const fechaInicio = document.getElementById('modal_editar_fecha_inicio').value;
+    const fechaFin = document.getElementById('modal_editar_fecha_fin').value;
+    const destinoSeleccionado = document.querySelector('#destinos-container-editar input[type="radio"]:checked');
+    const precioInput = document.getElementById('modal_editar_precio_total');
+    
+    if (!fechaInicio || !fechaFin || !destinoSeleccionado) {
+        precioInput.value = '';
+        return;
+    }
+    
+    const fechaInicioDate = new Date(fechaInicio);
+    const fechaFinDate = new Date(fechaFin);
+    
+    if (fechaFinDate < fechaInicioDate) {
+        precioInput.value = '';
+        return;
+    }
+    
+    // Calcular días de viaje (incluyendo el día de inicio y fin)
+    const diffTime = Math.abs(fechaFinDate - fechaInicioDate);
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+    
+    // Obtener el costo base del destino seleccionado
+    const destinoId = parseInt(destinoSeleccionado.value);
+    const destino = destinosDataEditar.find(d => d.id === destinoId);
+    
+    if (!destino) {
+        precioInput.value = '';
+        return;
+    }
+    
+    // Calcular precio base: costo_base * días
+    const precioBase = destino.costo_base * diffDays;
+    
+    // Determinar temporada basada en la fecha de inicio
+    const temporadaAlta = esTemporadaAlta(fechaInicioDate);
+    
+    // Aplicar multiplicador según temporada
+    // Temporada alta: +20% (multiplicador 1.2)
+    // Temporada baja: -20% (multiplicador 0.8)
+    const multiplicador = temporadaAlta ? 1.2 : 0.8;
+    const precioTotal = precioBase * multiplicador;
+    
+    precioInput.value = precioTotal.toFixed(2);
+}
+
+// Cargar destinos cuando se abre el modal
+document.getElementById('modalCrearPaquete').addEventListener('show.bs.modal', async function() {
+    const container = document.getElementById('destinos-container');
+    
+    try {
+        const response = await fetch('/admin/api/destinos');
+        if (!response.ok) throw new Error('Error al cargar destinos');
+        destinosData = await response.json();
+        
+        if (destinosData.length === 0) {
+            container.innerHTML = '<p class="text-muted mb-0">No hay destinos disponibles. Crea destinos primero.</p>';
+            return;
+        }
+        
+        container.innerHTML = '';
+        destinosData.forEach(destino => {
+            container.innerHTML += `
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="destino" 
+                           value="${destino.id}" id="modal_destino_${destino.id}" required>
+                    <label class="form-check-label" for="modal_destino_${destino.id}">
+                        ${destino.nombre} - ${formatCLP(destino.costo_base)}
+                    </label>
+                </div>
+            `;
+        });
+        
+        // Agregar event listeners para calcular precio
+        container.querySelectorAll('input[type="radio"]').forEach(radio => {
+            radio.addEventListener('change', calcularPrecioTotal);
+        });
+        
+        // Resetear precio al abrir el modal
+        document.getElementById('modal_precio_total').value = '';
+    } catch (error) {
+        container.innerHTML = '<p class="text-danger mb-0">Error al cargar destinos</p>';
+    }
+});
+
+// Agregar event listeners para fechas
+document.getElementById('modal_fecha_inicio').addEventListener('change', calcularPrecioTotal);
+document.getElementById('modal_fecha_fin').addEventListener('change', calcularPrecioTotal);
+
+// Enviar formulario
+document.getElementById('formCrearPaquete').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const destinoSeleccionado = document.querySelector('#destinos-container input[type="radio"]:checked');
+    if (!destinoSeleccionado) {
+        Swal.fire('Destino requerido', 'Debes seleccionar un destino', 'warning');
+        return;
+    }
+    if (!this.checkValidity()) return this.reportValidity();
+    
+    const formData = new FormData(this);
+    const data = {
+        nombre: formData.get('nombre'),
+        origen: formData.get('origen'),
+        fecha_inicio: formData.get('fecha_inicio'),
+        fecha_fin: formData.get('fecha_fin'),
+        precio_total: formData.get('precio_total'),
+        disponibles: formData.get('disponibles'),
+        destinos: [parseInt(destinoSeleccionado.value)]
+    };
+    
+    try {
+        const response = await fetch('/admin/paquetes/crear/api', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+        const result = await response.json();
+        
+        if (response.ok) {
+            Swal.fire('¡Éxito!', result.message, 'success').then(() => {
+                bootstrap.Modal.getInstance(document.getElementById('modalCrearPaquete')).hide();
+                this.reset();
+                cargarPaquetes();
+            });
+        } else {
+            Swal.fire('Error', result.error || 'Error al crear el paquete', 'error');
+        }
+    } catch (error) {
+        Swal.fire('Error', 'Error de conexión', 'error');
+    }
+});
+</script>
+
+<!-- Modal para Editar Paquete -->
+<div class="modal fade" id="modalEditarPaquete" tabindex="-1" aria-labelledby="modalEditarPaqueteLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="modalEditarPaqueteLabel">
+                    <i class="bi bi-pencil-square"></i> Editar Paquete
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="formEditarPaquete">
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="modal_editar_nombre" class="form-label fw-bold">Nombre <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="modal_editar_nombre" name="nombre" required>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="modal_editar_origen" class="form-label fw-bold">Origen</label>
+                            <input type="text" class="form-control" id="modal_editar_origen" name="origen" value="Punta Arenas" readonly>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="modal_editar_fecha_inicio" class="form-label fw-bold">Fecha Inicio <span class="text-danger">*</span></label>
+                            <input type="date" class="form-control" id="modal_editar_fecha_inicio" name="fecha_inicio" required>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="modal_editar_fecha_fin" class="form-label fw-bold">Fecha Fin <span class="text-danger">*</span></label>
+                            <input type="date" class="form-control" id="modal_editar_fecha_fin" name="fecha_fin" required>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="modal_editar_precio_total" class="form-label fw-bold">Precio Total <span class="text-danger">*</span></label>
+                            <input type="number" class="form-control" id="modal_editar_precio_total" name="precio_total" step="0.01" min="0" readonly required>
+                            <small class="text-muted"><i class="bi bi-info-circle"></i> Se calcula automáticamente según destino y fechas</small>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="modal_editar_disponibles" class="form-label fw-bold">Cupos Disponibles</label>
+                            <input type="number" class="form-control" id="modal_editar_disponibles" name="disponibles" min="0" required>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Destino <span class="text-danger">*</span></label>
+                        <div class="border rounded p-3" style="max-height: 200px; overflow-y: auto;" id="destinos-container-editar">
+                            <div class="text-center text-muted">
+                                <div class="spinner-border spinner-border-sm" role="status">
+                                    <span class="visually-hidden">Cargando...</span>
+                                </div>
+                                <p class="mt-2 mb-0">Cargando destinos...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="bi bi-x-circle"></i> Cancelar
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-check-circle"></i> Guardar Cambios
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+// Manejar el envío del formulario de edición
+document.getElementById('formEditarPaquete').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const paqueteId = this.dataset.paqueteId;
+    if (!paqueteId) {
+        Swal.fire('Error', 'No se pudo identificar el paquete', 'error');
+        return;
+    }
+    
+    const destinoSeleccionado = document.querySelector('#destinos-container-editar input[type="radio"]:checked');
+    if (!destinoSeleccionado) {
+        Swal.fire('Destino requerido', 'Debes seleccionar un destino', 'warning');
+        return;
+    }
+    
+    const formData = new FormData(this);
+    const data = {
+        nombre: formData.get('nombre'),
+        origen: formData.get('origen'),
+        fecha_inicio: formData.get('fecha_inicio'),
+        fecha_fin: formData.get('fecha_fin'),
+        precio_total: formData.get('precio_total'),
+        disponibles: formData.get('disponibles'),
+        destinos: [parseInt(destinoSeleccionado.value)]
+    };
+    
+    try {
+        const response = await fetch(`/admin/paquetes/editar/${paqueteId}/api`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+        const result = await response.json();
+        
+        if (response.ok) {
+            Swal.fire('¡Éxito!', result.message, 'success').then(() => {
+                bootstrap.Modal.getInstance(document.getElementById('modalEditarPaquete')).hide();
+                this.reset();
+                cargarPaquetes();
+            });
+        } else {
+            Swal.fire('Error', result.error || 'Error al actualizar el paquete', 'error');
+        }
+    } catch (error) {
+        Swal.fire('Error', 'Error de conexión', 'error');
+    }
+});
+</script>
+{% endif %}
+{% endblock %}

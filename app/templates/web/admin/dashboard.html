@@ -1,0 +1,190 @@
+{% extends "web/admin/base_admin.html" %}
+
+{% block admin_title %}Dashboard{% endblock %}
+
+{% block admin_content %}
+<div class="row mb-4">
+    <div class="col-md-3 mb-3">
+        <div class="card text-white bg-success">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title">Destinos</h6>
+                        <h2 class="mb-0">{{ total_destinos }}</h2>
+                    </div>
+                    <i class="bi bi-geo-alt fs-1 opacity-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card text-white bg-info">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title">Paquetes</h6>
+                        <h2 class="mb-0">{{ total_paquetes }}</h2>
+                    </div>
+                    <i class="bi bi-box-seam fs-1 opacity-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card text-white bg-warning">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title">Reservas</h6>
+                        <h2 class="mb-0">{{ total_reservas }}</h2>
+                        <small>{{ reservas_confirmadas }} confirmadas</small>
+                    </div>
+                    <i class="bi bi-calendar-check fs-1 opacity-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-3 mb-3">
+        <div class="card text-white" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%);">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title">Ingresos Totales</h6>
+                        <h3 class="mb-0">${{ "{:,.0f}".format(ingresos_totales).replace(',', '.') }}</h3>
+                    </div>
+                    <i class="bi bi-currency-dollar fs-1 opacity-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card text-white bg-info">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title">Reservas Pendientes</h6>
+                        <h2 class="mb-0">{{ reservas_pendientes }}</h2>
+                    </div>
+                    <i class="bi bi-clock-history fs-1 opacity-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card text-white bg-danger">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title">Reservas Canceladas</h6>
+                        <h2 class="mb-0">{{ reservas_canceladas }}</h2>
+                    </div>
+                    <i class="bi bi-x-circle fs-1 opacity-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card text-white" style="background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title">Paquetes Agotados</h6>
+                        <h2 class="mb-0">{{ paquetes_agotados }}</h2>
+                    </div>
+                    <i class="bi bi-box-seam fs-1 opacity-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="bi bi-clock-history"></i> Últimas Reservas</h5>
+            </div>
+            <div class="card-body">
+                {% if ultimas_reservas %}
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Usuario</th>
+                                <th>Paquete</th>
+                                <th>Destinos</th>
+                                <th>Estado</th>
+                                <th>Fecha</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for reserva in ultimas_reservas %}
+                            <tr>
+                                <td>{{ reserva.usuario.nombre_completo }}</td>
+                                <td>{{ reserva.paquete.nombre }}</td>
+                                <td>
+                                    <small>
+                                        {% if reserva.paquete.destinos %}
+                                            {% for pd in reserva.paquete.destinos %}
+                                                <span class="badge bg-info text-dark">{{ pd.destino.nombre }}</span>
+                                            {% endfor %}
+                                        {% else %}
+                                            <span class="text-muted">Sin destinos</span>
+                                        {% endif %}
+                                    </small>
+                                </td>
+                                <td>
+                                    <span class="badge {% if reserva.estado == 'confirmada' %}bg-success{% elif reserva.estado == 'cancelada' %}bg-danger{% else %}bg-warning{% endif %}">
+                                        {{ reserva.estado }}
+                                    </span>
+                                </td>
+                                <td>{{ reserva.fecha_reserva.strftime('%d/%m/%Y') if reserva.fecha_reserva else '-' }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted mb-0">No hay reservas recientes</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0"><i class="bi bi-trophy"></i> Paquetes Más Reservados</h5>
+            </div>
+            <div class="card-body">
+                {% if paquetes_reservados %}
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Paquete</th>
+                                <th>Reservas</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for paquete, total in paquetes_reservados %}
+                            <tr>
+                                <td>{{ paquete }}</td>
+                                <td><span class="badge bg-primary">{{ total }}</span></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted mb-0">No hay datos disponibles</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
