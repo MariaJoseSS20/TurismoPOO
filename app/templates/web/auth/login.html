@@ -12,31 +12,47 @@
                 </h4>
             </div>
             <div class="card-body p-4">
-                <form method="POST" id="formLogin" novalidate>
+                <form method="POST" id="formLogin">
+                    {{ form.hidden_tag() }}
+                    
+                    {% with messages = get_flashed_messages(with_categories=true) %}
+                        {% if messages %}
+                            {% for category, message in messages %}
+                                {% if category == 'danger' %}
+                                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                                    <i class="bi bi-exclamation-triangle-fill me-2"></i>{{ message }}
+                                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                                </div>
+                                {% endif %}
+                            {% endfor %}
+                        {% endif %}
+                    {% endwith %}
+                    
                     <div class="mb-3">
                         <label for="email" class="form-label fw-bold text-primary">
-                            <i class="bi bi-envelope"></i> Email:
+                            <i class="bi bi-envelope"></i> Email <span class="text-danger">*</span>
                         </label>
-                        <input type="email" class="form-control form-control-lg {% if error %}is-invalid{% endif %}" 
-                               id="email" name="email" required placeholder="tu@email.com"
-                               value="{{ request.form.email if request.form else '' }}">
-                        {% if error %}
-                        <div class="invalid-feedback d-block">
-                            <i class="bi bi-exclamation-triangle-fill"></i> {{ error }}
-                        </div>
+                        {{ form.email(class="form-control form-control-lg" + (" is-invalid" if form.email.errors else ""), placeholder="tu@email.com") }}
+                        {% if form.email.errors %}
+                            {% for error in form.email.errors %}
+                            <div class="invalid-feedback d-block">
+                                <i class="bi bi-exclamation-triangle-fill"></i> {{ error }}
+                            </div>
+                            {% endfor %}
                         {% endif %}
                     </div>
                     
                     <div class="mb-4">
                         <label for="password" class="form-label fw-bold text-primary">
-                            <i class="bi bi-lock"></i> Contraseña:
+                            <i class="bi bi-lock"></i> Contraseña <span class="text-danger">*</span>
                         </label>
-                        <input type="password" class="form-control form-control-lg {% if error %}is-invalid{% endif %}" 
-                               id="password" name="password" required placeholder="••••••••">
-                        {% if error %}
-                        <div class="invalid-feedback d-block">
-                            <i class="bi bi-exclamation-triangle-fill"></i> {{ error }}
-                        </div>
+                        {{ form.password(class="form-control form-control-lg" + (" is-invalid" if form.password.errors else ""), placeholder="••••••••") }}
+                        {% if form.password.errors %}
+                            {% for error in form.password.errors %}
+                            <div class="invalid-feedback d-block">
+                                <i class="bi bi-exclamation-triangle-fill"></i> {{ error }}
+                            </div>
+                            {% endfor %}
                         {% endif %}
                     </div>
                     

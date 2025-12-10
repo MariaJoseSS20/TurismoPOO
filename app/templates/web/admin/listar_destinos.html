@@ -1,0 +1,198 @@
+{% extends "web/admin/base_admin.html" %}
+
+{% block admin_title %}Gestión de Destinos{% endblock %}
+
+{% block admin_content %}
+<div class="card mb-4">
+    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+        <h5 class="mb-0"><i class="bi bi-geo-alt-fill"></i> Lista de Destinos</h5>
+        <div>
+            <a href="{{ url_for('admin.crear_destino') }}" class="btn btn-light btn-sm">
+                <i class="bi bi-plus-circle"></i> Crear Destino
+            </a>
+            <span class="badge bg-light text-dark ms-2" id="contador-destinos">{{ destinos|length }} destino{{ 's' if destinos|length != 1 else '' }}</span>
+        </div>
+    </div>
+    <div class="card-body">
+        <div class="row g-3 mb-4">
+            <div class="col-md-12">
+                <div class="input-group">
+                    <span class="input-group-text">
+                        <i class="bi bi-search"></i>
+                    </span>
+                    <input type="text" class="form-control" id="buscar-destinos" placeholder="Buscar por nombre, descripción u origen..." value="{{ busqueda }}" autocomplete="off">
+                </div>
+            </div>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th class="text-center">N° Destino</th>
+                        <th>Nombre</th>
+                        <th>Origen</th>
+                        <th>Costo Base</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="destinos-tbody">
+                    {% if destinos %}
+                    {% for destino in destinos %}
+                    <tr>
+                        <td class="text-center"><strong>{{ destino.id }}</strong></td>
+                        <td>
+                            <strong>{{ destino.nombre }}</strong>
+                            {% if destino.descripcion %}
+                            <br><small class="text-muted">{{ destino.descripcion[:50] }}{% if destino.descripcion|length > 50 %}...{% endif %}</small>
+                            {% endif %}
+                        </td>
+                        <td>{{ destino.origen or '-' }}</td>
+                        <td>
+                            <strong class="text-success">${{ "{:,.0f}".format(destino.costo_base).replace(',', '.') }}</strong>
+                        </td>
+                        <td>
+                            <div class="d-flex gap-2">
+                                <a href="{{ url_for('admin.detalle_destino', id=destino.id) }}" class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-eye"></i> Ver Detalle
+                                </a>
+                                <a href="{{ url_for('admin.editar_destino', id=destino.id) }}" class="btn btn-sm btn-outline-warning">
+                                    <i class="bi bi-pencil"></i> Editar
+                                </a>
+                                <form method="POST" action="{{ url_for('admin.eliminar_destino', id=destino.id) }}" 
+                                      onsubmit="return confirm('¿Estás seguro de eliminar el destino {{ destino.nombre }}?');" style="display: inline;">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">
+                                        <i class="bi bi-trash"></i> Eliminar
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    {% else %}
+                    <tr>
+                        <td colspan="5" class="text-center text-muted py-4">
+                            <i class="bi bi-search"></i> No se encontraron destinos con los criterios de búsqueda
+                        </td>
+                    </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+(function() {
+    const buscarInput = document.getElementById('buscar-destinos');
+    const tbody = document.getElementById('destinos-tbody');
+    const contador = document.getElementById('contador-destinos');
+    if (!buscarInput || !tbody) return;
+    
+    let timeoutId;
+    
+    function actualizarTabla(destinos) {
+        if (!destinos || destinos.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="5" class="text-center text-muted py-4">
+                        <i class="bi bi-search"></i> No se encontraron destinos con los criterios de búsqueda
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+        
+        let html = '';
+        destinos.forEach(destino => {
+            const descripcion = destino.descripcion ? 
+                (destino.descripcion.length > 50 ? destino.descripcion.substring(0, 50) + '...' : destino.descripcion) : '';
+            const origen = destino.origen || '-';
+            const costo = new Intl.NumberFormat('es-CL', { 
+                minimumFractionDigits: 0, 
+                maximumFractionDigits: 0 
+            }).format(destino.costo_base);
+            
+            html += `
+                <tr>
+                    <td class="text-center"><strong>${destino.id}</strong></td>
+                    <td>
+                        <strong>${destino.nombre}</strong>
+                        ${descripcion ? `<br><small class="text-muted">${descripcion}</small>` : ''}
+                    </td>
+                    <td>${origen}</td>
+                    <td>
+                        <strong class="text-success">$${costo}</strong>
+                    </td>
+                    <td>
+                        <div class="d-flex gap-2">
+                            <a href="/admin/destinos/detalle/${destino.id}" class="btn btn-sm btn-outline-primary">
+                                <i class="bi bi-eye"></i> Ver Detalle
+                            </a>
+                            <a href="/admin/destinos/editar/${destino.id}" class="btn btn-sm btn-outline-warning">
+                                <i class="bi bi-pencil"></i> Editar
+                            </a>
+                            <form method="POST" action="/admin/destinos/eliminar/${destino.id}" 
+                                  onsubmit="return confirm('¿Estás seguro de eliminar el destino ${destino.nombre.replace(/'/g, "\\'")}?');" style="display: inline;">
+                                <button type="submit" class="btn btn-sm btn-outline-danger">
+                                    <i class="bi bi-trash"></i> Eliminar
+                                </button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        });
+        tbody.innerHTML = html;
+    }
+    
+    async function realizarBusqueda() {
+        const busqueda = buscarInput.value.trim();
+        const url = new URL(window.location.origin + '/admin/destinos');
+        
+        if (busqueda) {
+            url.searchParams.set('buscar', busqueda);
+        }
+        
+        // Actualizar URL sin recargar
+        window.history.pushState({}, '', url.toString());
+        
+        try {
+            const response = await fetch(url.toString());
+            if (!response.ok) throw new Error('Error en la búsqueda');
+            
+            const html = await response.text();
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+            const nuevoTbody = doc.getElementById('destinos-tbody');
+            const nuevoContador = doc.getElementById('contador-destinos');
+            
+            if (nuevoTbody) {
+                tbody.innerHTML = nuevoTbody.innerHTML;
+            }
+            
+            if (nuevoContador && contador) {
+                contador.textContent = nuevoContador.textContent;
+            }
+        } catch (error) {
+            console.error('Error en búsqueda:', error);
+        }
+    }
+    
+    // Búsqueda en tiempo real con debounce (espera 500ms después de que el usuario deje de escribir)
+    buscarInput.addEventListener('input', function() {
+        clearTimeout(timeoutId);
+        timeoutId = setTimeout(realizarBusqueda, 500);
+    });
+    
+    // Permitir búsqueda inmediata con Enter
+    buscarInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            clearTimeout(timeoutId);
+            realizarBusqueda();
+        }
+    });
+})();
+</script>
+{% endblock %}
+

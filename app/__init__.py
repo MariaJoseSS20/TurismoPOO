@@ -1,13 +1,29 @@
 from flask import Flask, render_template
 from flask_sqlalchemy import SQLAlchemy
+from flask_wtf.csrf import CSRFProtect
+from flask_migrate import Migrate
 from config import Config
 
 db = SQLAlchemy()
+csrf = CSRFProtect()
+migrate = Migrate()
 
 def create_app(config_class=Config):
     app = Flask(__name__)
     app.config.from_object(config_class)
+    config_class.init_app(app)  # Validar configuración
     db.init_app(app)
+    csrf.init_app(app)
+    migrate.init_app(app, db)
+    
+    # Excluir rutas de API de CSRF ANTES de que se valide
+    @app.before_request
+    def exempt_api_from_csrf():
+        from flask import request
+        if request.path.startswith('/api/'):
+            # Marcar la vista como exenta antes de la validación CSRF
+            if request.endpoint:
+                csrf._exempt_views.add(request.endpoint)
     
     # Agregar headers CORS para todas las respuestas
     @app.after_request

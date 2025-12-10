@@ -10,6 +10,8 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
     <!-- Flatpickr para calendarios modernos -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <!-- CSS personalizado -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}">
     <style>
         :root {
             --primary-blue: #0066CC;
@@ -496,6 +498,13 @@ Viajes Aventura
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav ms-auto align-items-center">
+                    {% if session.usuario_id and session.usuario_rol == 'admin' %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('admin.dashboard') }}">
+                            <i class="bi bi-speedometer2 text-warning"></i> Dashboard
+                        </a>
+                    </li>
+                    {% endif %}
                     <li class="nav-item">
                         <a class="nav-link" href="/">
                             <i class="bi bi-house-fill text-coral"></i> Inicio
@@ -515,21 +524,13 @@ Viajes Aventura
                     </li>
                     {% endif %}
                     {% if session.usuario_id %}
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown">
-                            <i class="bi bi-person-circle"></i> {{ session.usuario_nombre }}
+                    {% if session.usuario_rol == 'cliente' %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('auth.perfil_detalle') }}">
+                            <i class="bi bi-person-circle"></i> Mi Perfil
                         </a>
-                        <ul class="dropdown-menu dropdown-menu-end">
-                            <li><a class="dropdown-item" href="{{ url_for('auth.perfil') }}">
-                                <i class="bi bi-person"></i> Mi Perfil
-                            </a></li>
-                            {% if session.usuario_rol == 'cliente' %}
-                            <li><a class="dropdown-item" href="{{ url_for('web.mis_reservas') }}">
-                                <i class="bi bi-calendar-check"></i> Mis Reservas
-                            </a></li>
-                            {% endif %}
-                        </ul>
                     </li>
+                    {% endif %}
                     <li class="nav-item ms-2">
                         <a class="btn btn-outline-danger px-3 py-2" href="{{ url_for('auth.logout') }}" style="text-decoration: none;">
                             <i class="bi bi-box-arrow-right"></i> Cerrar Sesión

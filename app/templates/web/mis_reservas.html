@@ -69,7 +69,6 @@ function crearCardReserva(reserva) {
     const estadoClass = {
         'confirmada': 'success',
         'cancelada': 'danger',
-        'pendiente': 'warning',
         'completada': 'info'
     }[reserva.estado] || 'secondary';
     
@@ -107,10 +106,10 @@ function crearCardReserva(reserva) {
                                     <i class="bi bi-geo-alt-fill text-danger me-1"></i>${destino.nombre}
                                 </h6>
                                 ${destino.descripcion ? `
-                                    <p class="small text-muted mb-2">${destino.descripcion}</p>
+                                    <p class="small text-muted mb-2 text-center">${destino.descripcion}</p>
                                 ` : ''}
                                 ${destino.actividades && destino.actividades.length > 0 ? `
-                                    <div class="d-flex flex-wrap gap-1">
+                                    <div class="d-flex flex-wrap gap-1 justify-content-center">
                                         ${destino.actividades.map(actividad => `
                                             <span class="badge bg-purple-pastel text-purple-dark fw-bold">${actividad.trim()}</span>
                                         `).join('')}

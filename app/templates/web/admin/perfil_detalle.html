@@ -1,0 +1,77 @@
+{% extends "web/admin/base_admin.html" %}
+
+{% block admin_title %}Mi Perfil{% endblock %}
+
+{% block admin_content %}
+<div class="row justify-content-center">
+    <div class="col-md-10">
+        <div class="card">
+            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                <h4 class="mb-0 fw-bold">
+                    <i class="bi bi-person-circle"></i> Mi Perfil
+                </h4>
+                <a href="{{ url_for('auth.perfil') }}" class="btn btn-light btn-sm">
+                    <i class="bi bi-pencil"></i> Editar
+                </a>
+            </div>
+            <div class="card-body p-4">
+                <div class="row mb-4">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label text-muted"><strong>Nombre Completo</strong></label>
+                        <p class="mb-0 fs-5">{{ usuario.nombre_completo }}</p>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label text-muted"><strong>RUT</strong></label>
+                        <p class="mb-0 fs-5">{{ usuario.rut }}</p>
+                    </div>
+                </div>
+                
+                <div class="row mb-4">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label text-muted"><strong>Email</strong></label>
+                        <p class="mb-0 fs-5">{{ usuario.email }}</p>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label text-muted"><strong>Fecha de Nacimiento</strong></label>
+                        <p class="mb-0 fs-5">
+                            {{ usuario.fecha_nacimiento.strftime('%d/%m/%Y') if usuario.fecha_nacimiento else 'No especificada' }}
+                        </p>
+                    </div>
+                </div>
+                
+                <div class="row mb-4">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label text-muted"><strong>Teléfono</strong></label>
+                        <p class="mb-0 fs-5">{{ usuario.telefono or 'No especificado' }}</p>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label text-muted"><strong>Rol</strong></label>
+                        <div>
+                            <span class="badge bg-purple fs-6">{{ usuario.rol|title }}</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <label class="form-label text-muted"><strong>Fecha de Registro</strong></label>
+                        <p class="mb-0 fs-5">
+                            {{ usuario.fecha_registro.strftime('%d/%m/%Y') if usuario.fecha_registro else 'N/A' }}
+                        </p>
+                    </div>
+                </div>
+                
+                <div class="d-grid gap-2 d-md-flex justify-content-md-between mt-4">
+                    <a href="{{ url_for('auth.perfil') }}" class="btn btn-primary">
+                        <i class="bi bi-pencil"></i> Editar Perfil
+                    </a>
+                    <a href="{{ url_for('admin.dashboard') }}" class="btn btn-outline-secondary">
+                        <i class="bi bi-arrow-left"></i> Volver al Dashboard
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

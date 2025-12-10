@@ -1,0 +1,127 @@
+{% extends "web/admin/base_admin.html" %}
+
+{% block admin_title %}Detalle de Destino {{ destino.id }}{% endblock %}
+
+{% block admin_content %}
+<div class="row">
+    <div class="col-12 mb-3">
+        <a href="{{ url_for('admin.listar_destinos') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Volver a Lista
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Información Principal -->
+    <div class="col-md-8 mb-4">
+        <div class="card shadow-sm">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">
+                    <i class="bi bi-geo-alt-fill"></i> Destino {{ destino.id }}
+                </h5>
+            </div>
+            <div class="card-body">
+                <!-- Información Básica -->
+                <div class="mb-4">
+                    <h6 class="text-primary border-bottom pb-2">
+                        <i class="bi bi-info-circle"></i> Información Básica
+                    </h6>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <strong>Nombre:</strong><br>
+                            <h5 class="mt-1">{{ destino.nombre }}</h5>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <strong>Origen:</strong><br>
+                            <span class="badge bg-pastel-info fs-6 mt-1">{{ destino.origen or 'No especificado' }}</span>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <strong>Costo Base:</strong><br>
+                            <h4 class="text-success mt-1">${{ "{:,.0f}".format(destino.costo_base).replace(',', '.') }}</h4>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Descripción -->
+                {% if destino.descripcion %}
+                <div class="mb-4">
+                    <h6 class="text-primary border-bottom pb-2">
+                        <i class="bi bi-file-text"></i> Descripción
+                    </h6>
+                    <p class="mb-0">{{ destino.descripcion }}</p>
+                </div>
+                {% endif %}
+
+                <!-- Actividades -->
+                {% if destino.actividades %}
+                <div class="mb-4">
+                    <h6 class="text-primary border-bottom pb-2">
+                        <i class="bi bi-list-check"></i> Actividades
+                    </h6>
+                    <div class="d-flex flex-wrap gap-2">
+                        {% for actividad in destino.actividades.split(',') %}
+                        <span class="badge bg-pastel-info fs-6">{{ actividad.strip() }}</span>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Información Adicional -->
+    <div class="col-md-4 mb-4">
+        <div class="card shadow-sm">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0">
+                    <i class="bi bi-box-seam"></i> Paquetes que Incluyen este Destino
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if paquetes %}
+                    <p class="text-muted small mb-3">Este destino está incluido en {{ paquetes|length }} paquete(s):</p>
+                    {% for paquete in paquetes %}
+                    <div class="card mb-2 {% if loop.first %}border-primary{% endif %}">
+                        <div class="card-body p-2">
+                            <h6 class="card-title mb-1">{{ paquete.nombre }}</h6>
+                            <div class="small">
+                                <p class="mb-1"><strong>Fecha:</strong> 
+                                    {{ paquete.fecha_inicio.strftime('%d/%m/%Y') if paquete.fecha_inicio else 'N/A' }} - 
+                                    {{ paquete.fecha_fin.strftime('%d/%m/%Y') if paquete.fecha_fin else 'N/A' }}
+                                </p>
+                                <p class="mb-0"><strong>Precio:</strong> 
+                                    <span class="text-success">${{ "{:,.0f}".format(paquete.precio_total).replace(',', '.') }}</span>
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="alert alert-info mb-0">
+                        <i class="bi bi-info-circle"></i> Este destino no está incluido en ningún paquete aún.
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Acciones -->
+        <div class="card shadow-sm mt-3">
+            <div class="card-body">
+                <h6 class="card-title">Acciones</h6>
+                <div class="d-grid gap-2">
+                    <a href="{{ url_for('admin.editar_destino', id=destino.id) }}" class="btn btn-warning">
+                        <i class="bi bi-pencil"></i> Editar Destino
+                    </a>
+                    <form method="POST" action="{{ url_for('admin.eliminar_destino', id=destino.id) }}" 
+                          onsubmit="return confirm('¿Estás seguro de eliminar el destino {{ destino.nombre }}?');">
+                        <button type="submit" class="btn btn-danger w-100">
+                            <i class="bi bi-trash"></i> Eliminar Destino
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

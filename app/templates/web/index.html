@@ -188,7 +188,6 @@ function mostrarPaquetes(paquetes, titulo = 'Paquetes Destacados') {
                         <div class="mb-3 flex-grow-1">
                             <div class="d-flex align-items-center justify-content-between mb-3 p-3 rounded bg-light border">
                                 <div class="d-flex align-items-center flex-fill">
-                                    <i class="bi bi-geo-alt-fill text-dark me-2"></i>
                                     <div>
                                         <small class="text-muted d-block">Origen</small>
                                         <strong>${paquete.origen || 'N/A'}</strong>
@@ -204,37 +203,7 @@ function mostrarPaquetes(paquetes, titulo = 'Paquetes Destacados') {
                                 </div>
                             </div>
                             
-                            ${paquete.destinos && paquete.destinos.length > 0 ? `
-                                <div class="mb-3">
-                                    ${paquete.destinos.map(destino => {
-                                        const actividadesArray = Array.isArray(destino.actividades) ? destino.actividades : (destino.actividades ? destino.actividades.split(',').map(a => a.trim()) : []);
-                                        const descripcion = destino.descripcion || '';
-                                        return `
-                                            <div class="mb-3">
-                                                ${actividadesArray.length > 0 ? `
-                                                    <div class="mb-2">
-                                                        <small class="text-muted d-block mb-2">
-                                                            <i class="bi bi-list-check text-warning me-1"></i> Actividades
-                                                        </small>
-                                                        <div class="d-flex flex-wrap gap-1">
-                                                            ${actividadesArray.slice(0, 3).map(act => `<span class="badge bg-purple-pastel text-purple-dark small">${act}</span>`).join('')}
-                                                            ${actividadesArray.length > 3 ? `<span class="badge bg-secondary-subtle text-secondary small">+${actividadesArray.length - 3}</span>` : ''}
-                                                        </div>
-                                                    </div>
-                                                ` : ''}
-                                                
-                                                ${descripcion ? `
-                                                    <div class="mb-0">
-                                                        <p class="text-muted small mb-0 lh-sm">${descripcion}</p>
-                                                    </div>
-                                                ` : ''}
-                                            </div>
-                                        `;
-                                    }).join('')}
-                                </div>
-                            ` : ''}
-                            
-                            <div class="d-flex align-items-center justify-content-between p-2 rounded bg-light mb-2">
+                            <div class="d-flex align-items-center justify-content-between p-2 rounded bg-light mb-3">
                                 <div class="d-flex align-items-center">
                                     <i class="bi bi-clock text-primary me-2"></i>
                                     <div>
@@ -245,13 +214,41 @@ function mostrarPaquetes(paquetes, titulo = 'Paquetes Destacados') {
                                 <div class="d-flex align-items-center">
                                     <i class="bi bi-calendar3 text-primary me-2"></i>
                                     <div>
-                                        <small class="text-muted d-block">Fecha </small>
-                                        <strong class="small d-block">${fechaInicio} -</strong>
-        
-                                        <strong class="small">${fechaFin}</strong>
+                                        <small class="text-muted d-block">Fechas</small>
+                                        <strong class="small">${fechaInicio} - ${fechaFin}</strong>
                                     </div>
                                 </div>
                             </div>
+                            
+                            ${paquete.destinos && paquete.destinos.length > 0 ? `
+                                <div class="mb-3">
+                                    ${paquete.destinos.map(destino => {
+                                        const actividadesArray = Array.isArray(destino.actividades) ? destino.actividades : (destino.actividades ? destino.actividades.split(',').map(a => a.trim()) : []);
+                                        const descripcion = destino.descripcion || '';
+                                        return `
+                                            <div class="mb-3">
+                                                ${actividadesArray.length > 0 ? `
+                                                    <div class="mb-2">
+                                                        <small class="text-muted d-block mb-2 text-center">
+                                                            <i class="bi bi-list-check text-warning me-1"></i> Actividades
+                                                        </small>
+                                                        <div class="d-flex flex-wrap gap-1 justify-content-center">
+                                                            ${actividadesArray.slice(0, 3).map(act => `<span class="badge bg-purple-pastel text-purple-dark small">${act}</span>`).join('')}
+                                                            ${actividadesArray.length > 3 ? `<span class="badge bg-secondary-subtle text-secondary small">+${actividadesArray.length - 3}</span>` : ''}
+                                                        </div>
+                                                    </div>
+                                                ` : ''}
+                                                
+                                                ${descripcion ? `
+                                                    <div class="mb-0 text-center">
+                                                        <p class="text-muted small mb-0 lh-sm">${descripcion}</p>
+                                                    </div>
+                                                ` : ''}
+                                            </div>
+                                        `;
+                                    }).join('')}
+                                </div>
+                            ` : ''}
                         </div>
                         
                         <div class="mt-auto border-top pt-3">

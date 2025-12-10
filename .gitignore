@@ -1,7 +1,5 @@
-# Entorno virtual
-venv/
-env/
-ENV/
+# Variables de entorno
+.env
 
 # Python
 __pycache__/
@@ -9,19 +7,29 @@ __pycache__/
 *$py.class
 *.so
 .Python
+venv/
+env/
+ENV/
 
 # Flask
 instance/
 .webassets-cache
 
-# IDEs
+# Base de datos
+*.db
+*.sqlite
+*.sqlite3
+
+# IDE
 .vscode/
 .idea/
 *.swp
 *.swo
+*~
 
 # OS
 .DS_Store
 Thumbs.db
 
-
+# Logs
+*.log

@@ -5,7 +5,7 @@
 {% block admin_content %}
 <div class="card mb-4">
     <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-        <h5 class="mb-0"><i class="bi bi-calendar-check"></i> Lista de Reservas</h5>
+        <h5 class="mb-0"><i class="bi bi-calendar-check"></i> Lista de Reservas (Solo Lectura)</h5>
         <span class="badge bg-light text-dark">{{ reservas|length }} reserva(s)</span>
     </div>
     <div class="card-body">
@@ -17,7 +17,6 @@
                 <select class="form-select" name="estado">
                     <option value="">Todos los estados</option>
                     <option value="confirmada" {% if estado_filtro == 'confirmada' %}selected{% endif %}>Confirmada</option>
-                    <option value="pendiente" {% if estado_filtro == 'pendiente' %}selected{% endif %}>Pendiente</option>
                     <option value="cancelada" {% if estado_filtro == 'cancelada' %}selected{% endif %}>Cancelada</option>
                 </select>
             </div>
@@ -31,10 +30,9 @@
             <table class="table table-hover">
                 <thead>
                     <tr>
-                        <th>ID</th>
+                        <th class="text-center">N° Reserva</th>
                         <th>Usuario</th>
                         <th>Paquete</th>
-                        <th>Destinos</th>
                         <th>Fecha Reserva</th>
                         <th>Estado</th>
                         <th>Acciones</th>
@@ -44,44 +42,36 @@
                     {% if reservas %}
                     {% for reserva in reservas %}
                     <tr>
-                        <td>{{ reserva.id }}</td>
-                        <td>{{ reserva.usuario.nombre_completo }}</td>
-                        <td>{{ reserva.paquete.nombre }}</td>
+                        <td class="text-center"><strong>{{ reserva.id }}</strong></td>
                         <td>
-                            <small>
-                                {% if reserva.paquete.destinos %}
-                                    {% for pd in reserva.paquete.destinos %}
-                                        <span class="badge bg-info text-dark">{{ pd.destino.nombre }}</span>
-                                    {% endfor %}
-                                {% else %}
-                                    <span class="text-muted">Sin destinos</span>
-                                {% endif %}
+                            <strong>{{ reserva.usuario.nombre_completo }}</strong><br>
+                            <small class="text-muted">{{ reserva.usuario.email }}</small>
+                        </td>
+                        <td>
+                            {{ reserva.paquete.nombre }}<br>
+                            <small class="text-muted">
+                                <i class="bi bi-people"></i> {{ reserva.numero_pasajeros }} pasajero{{ 's' if reserva.numero_pasajeros > 1 else '' }}
                             </small>
                         </td>
-                        <td>{{ reserva.fecha_reserva.strftime('%d/%m/%Y %H:%M') if reserva.fecha_reserva else '-' }}</td>
                         <td>
-                            <span class="badge {% if reserva.estado == 'confirmada' %}bg-success{% elif reserva.estado == 'cancelada' %}bg-danger{% else %}bg-warning{% endif %}">
-                                {{ reserva.estado }}
+                            {{ reserva.fecha_reserva.strftime('%d/%m/%Y') if reserva.fecha_reserva else '-' }}<br>
+                            <small class="text-muted">{{ reserva.fecha_reserva.strftime('%H:%M') if reserva.fecha_reserva else '' }}</small>
+                        </td>
+                        <td>
+                            <span class="badge {% if reserva.estado == 'confirmada' %}bg-success{% elif reserva.estado == 'cancelada' %}bg-danger{% else %}bg-secondary{% endif %}">
+                                {{ reserva.estado|title }}
                             </span>
                         </td>
                         <td>
-                            <div class="btn-group" role="group">
-                                <a href="{{ url_for('admin.editar_reserva', id=reserva.id) }}" class="btn btn-sm btn-outline-primary">
-                                    <i class="bi bi-pencil"></i> Editar
-                                </a>
-                                <form method="POST" action="{{ url_for('admin.eliminar_reserva', id=reserva.id) }}" 
-                                      onsubmit="return confirm('¿Estás seguro de eliminar esta reserva?');" style="display: inline;">
-                                    <button type="submit" class="btn btn-sm btn-outline-danger">
-                                        <i class="bi bi-trash"></i> Eliminar
-                                    </button>
-                                </form>
-                            </div>
+                            <a href="{{ url_for('admin.detalle_reserva', id=reserva.id) }}" class="btn btn-sm btn-outline-primary">
+                                <i class="bi bi-eye"></i> Ver Detalle
+                            </a>
                         </td>
                     </tr>
                     {% endfor %}
                     {% else %}
                     <tr>
-                        <td colspan="7" class="text-center text-muted py-4">
+                        <td colspan="6" class="text-center text-muted py-4">
                             <i class="bi bi-search"></i> No se encontraron reservas con los criterios de búsqueda
                         </td>
                     </tr>

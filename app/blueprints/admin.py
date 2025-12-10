@@ -5,6 +5,10 @@ from app.models.usuario import Usuario
 from app.models.destino import Destino
 from app.models.paquete import Paquete, PaqueteDestino
 from app.models.reserva import Reserva
+from app.forms.admin_forms import DestinoForm, PaqueteForm
+from app.services.destino_service import DestinoService
+from app.services.paquete_service import PaqueteService
+from app.services.reserva_service import ReservaService
 from functools import wraps
 from datetime import datetime
 
@@ -51,7 +55,6 @@ def dashboard():
     ).join(Reserva).filter(Reserva.estado == 'confirmada').scalar() or 0
     
     # Reservas por estado
-    reservas_pendientes = Reserva.query.filter_by(estado='pendiente').count()
     reservas_canceladas = Reserva.query.filter_by(estado='cancelada').count()
     
     # Paquetes agotados
@@ -62,7 +65,6 @@ def dashboard():
                          total_paquetes=total_paquetes,
                          total_reservas=total_reservas,
                          reservas_confirmadas=reservas_confirmadas,
-                         reservas_pendientes=reservas_pendientes,
                          reservas_canceladas=reservas_canceladas,
                          ingresos_totales=float(ingresos_totales),
                          paquetes_agotados=paquetes_agotados,
@@ -96,38 +98,35 @@ def reservas():
                          busqueda=busqueda,
                          estado_filtro=estado_filtro)
 
+@bp.route('/reservas/detalle/<int:id>')
+@admin_required
+def detalle_reserva(id):
+    """Vista detallada de una reserva"""
+    reserva = Reserva.query.get_or_404(id)
+    return render_template('web/admin/detalle_reserva.html', reserva=reserva)
+
 # ========== CRUD DESTINOS ==========
 @bp.route('/destinos/crear', methods=['GET', 'POST'])
 @admin_required
 def crear_destino():
-    if request.method == 'POST':
-        nombre = request.form.get('nombre', '').strip()
-        costo_base = request.form.get('costo_base', '').strip()
-        
-        if not nombre:
-            flash('El nombre es obligatorio', 'danger')
-            return render_template('web/admin/form_destino.html')
-        
+    form = DestinoForm()
+    
+    if form.validate_on_submit():
         try:
-            costo = float(costo_base)
-            if costo < 0:
-                raise ValueError
-        except (ValueError, TypeError):
-            flash('El costo base debe ser un número válido mayor o igual a 0', 'danger')
-            return render_template('web/admin/form_destino.html')
-        
-        destino = Destino(
-            nombre=nombre,
-            origen=request.form.get('origen', '').strip() or None,
-            descripcion=request.form.get('descripcion', '').strip() or None,
-            actividades=request.form.get('actividades', '').strip() or None,
-            costo_base=costo
-        )
-        db.session.add(destino)
-        db.session.commit()
-        flash('Destino creado exitosamente', 'success')
-        return redirect('/destinos')
-    return render_template('web/admin/form_destino.html')
+            datos = {
+                'nombre': form.nombre.data,
+                'origen': form.origen.data.strip() if form.origen.data else None,
+                'descripcion': form.descripcion.data.strip() if form.descripcion.data else None,
+                'actividades': form.actividades.data.strip() if form.actividades.data else None,
+                'costo_base': form.costo_base.data
+            }
+            DestinoService.crear_destino(datos)
+            flash('Destino creado exitosamente', 'success')
+            return redirect(url_for('admin.listar_destinos'))
+        except Exception as e:
+            flash(f'Error al crear destino: {str(e)}', 'danger')
+    
+    return render_template('web/admin/form_destino.html', form=form)
 
 @bp.route('/destinos/crear/api', methods=['POST'])
 @admin_required
@@ -137,8 +136,6 @@ def crear_destino_api():
         data = request.get_json()
         
         nombre = data.get('nombre', '').strip()
-        origen = data.get('origen', '').strip() or None
-        descripcion = data.get('descripcion', '').strip() or None
         actividades = data.get('actividades', '').strip() or None
         costo_base_str = data.get('costo_base', '').strip()
         
@@ -158,15 +155,15 @@ def crear_destino_api():
         except (ValueError, TypeError):
             return jsonify({'error': 'El costo base debe ser un número válido'}), 400
         
-        destino = Destino(
-            nombre=nombre,
-            origen=origen,
-            descripcion=descripcion,
-            actividades=actividades,
-            costo_base=costo_base
-        )
-        db.session.add(destino)
-        db.session.commit()
+        datos = {
+            'nombre': nombre,
+            'origen': data.get('origen', '').strip() or None,
+            'descripcion': data.get('descripcion', '').strip() or None,
+            'actividades': actividades,
+            'costo_base': costo_base
+        }
+        
+        destino = DestinoService.crear_destino(datos)
         return jsonify({'success': True, 'message': 'Destino creado exitosamente', 'destino': destino.to_dict()}), 200
         
     except Exception as e:
@@ -177,99 +174,95 @@ def crear_destino_api():
 @admin_required
 def editar_destino(id):
     destino = Destino.query.get_or_404(id)
-    if request.method == 'POST':
-        nombre = request.form.get('nombre', '').strip()
-        costo_base = request.form.get('costo_base', '').strip()
-        
-        if not nombre:
-            flash('El nombre es obligatorio', 'danger')
-            return render_template('web/admin/form_destino.html', destino=destino)
-        
+    form = DestinoForm(obj=destino)
+    
+    if form.validate_on_submit():
         try:
-            costo = float(costo_base)
-            if costo < 0:
-                raise ValueError
-        except (ValueError, TypeError):
-            flash('El costo base debe ser un número válido mayor o igual a 0', 'danger')
-            return render_template('web/admin/form_destino.html', destino=destino)
-        
-        destino.nombre = nombre
-        destino.origen = request.form.get('origen', '').strip() or None
-        destino.descripcion = request.form.get('descripcion', '').strip() or None
-        destino.actividades = request.form.get('actividades', '').strip() or None
-        destino.costo_base = costo
-        db.session.commit()
-        flash('Destino actualizado exitosamente', 'success')
-        return redirect('/destinos')
-    return render_template('web/admin/form_destino.html', destino=destino)
+            datos = {
+                'nombre': form.nombre.data,
+                'origen': form.origen.data.strip() if form.origen.data else None,
+                'descripcion': form.descripcion.data.strip() if form.descripcion.data else None,
+                'actividades': form.actividades.data.strip() if form.actividades.data else None,
+                'costo_base': form.costo_base.data
+            }
+            DestinoService.actualizar_destino(id, datos)
+            flash('Destino actualizado exitosamente', 'success')
+            return redirect(url_for('admin.listar_destinos'))
+        except Exception as e:
+            flash(f'Error al actualizar destino: {str(e)}', 'danger')
+    
+    return render_template('web/admin/form_destino.html', form=form, destino=destino)
+
+@bp.route('/destinos')
+@admin_required
+def listar_destinos():
+    """Lista de destinos para administración"""
+    busqueda = request.args.get('buscar', '').strip()
+    
+    query = Destino.query
+    
+    if busqueda:
+        query = query.filter(
+            or_(
+                Destino.nombre.ilike(f'%{busqueda}%'),
+                Destino.descripcion.ilike(f'%{busqueda}%'),
+                Destino.origen.ilike(f'%{busqueda}%')
+            )
+        )
+    
+    destinos_list = query.order_by(Destino.nombre).all()
+    return render_template('web/admin/listar_destinos.html', 
+                         destinos=destinos_list,
+                         busqueda=busqueda)
+
+@bp.route('/destinos/detalle/<int:id>')
+@admin_required
+def detalle_destino(id):
+    """Vista detallada de un destino"""
+    destino = Destino.query.get_or_404(id)
+    # Obtener paquetes que incluyen este destino
+    paquetes = db.session.query(Paquete).join(PaqueteDestino).filter(
+        PaqueteDestino.destino_id == id
+    ).all()
+    return render_template('web/admin/detalle_destino.html', destino=destino, paquetes=paquetes)
 
 @bp.route('/destinos/eliminar/<int:id>', methods=['POST'])
 @admin_required
 def eliminar_destino(id):
-    destino = Destino.query.get_or_404(id)
-    db.session.delete(destino)
-    db.session.commit()
-    flash('Destino eliminado exitosamente', 'success')
-    return redirect('/destinos')
+    try:
+        DestinoService.eliminar_destino(id)
+        flash('Destino eliminado exitosamente', 'success')
+    except Exception as e:
+        flash(f'Error al eliminar destino: {str(e)}', 'danger')
+    return redirect(url_for('admin.listar_destinos'))
 
 # ========== CRUD PAQUETES ==========
 @bp.route('/paquetes/crear', methods=['GET', 'POST'])
 @admin_required
 def crear_paquete():
-    if request.method == 'POST':
-        nombre = request.form.get('nombre', '').strip()
-        fecha_inicio_str = request.form.get('fecha_inicio', '').strip()
-        fecha_fin_str = request.form.get('fecha_fin', '').strip()
-        precio_total_str = request.form.get('precio_total', '').strip()
-        disponibles_str = request.form.get('disponibles', '20').strip()
-        
-        if not nombre:
-            flash('El nombre es obligatorio', 'danger')
-            destinos_list = Destino.query.all()
-            return render_template('web/admin/form_paquete.html', destinos=destinos_list)
-        
-        try:
-            fecha_inicio = datetime.strptime(fecha_inicio_str, '%Y-%m-%d').date()
-            fecha_fin = datetime.strptime(fecha_fin_str, '%Y-%m-%d').date()
-            if fecha_fin < fecha_inicio:
-                raise ValueError('La fecha fin debe ser posterior a la fecha inicio')
-        except ValueError as e:
-            flash(f'Error en fechas: {str(e)}', 'danger')
-            destinos_list = Destino.query.all()
-            return render_template('web/admin/form_paquete.html', destinos=destinos_list)
-        
-        try:
-            precio_total = float(precio_total_str)
-            disponibles = int(disponibles_str)
-            if precio_total < 0 or disponibles < 0:
-                raise ValueError
-        except (ValueError, TypeError):
-            flash('El precio y disponibles deben ser números válidos mayores o iguales a 0', 'danger')
-            destinos_list = Destino.query.all()
-            return render_template('web/admin/form_paquete.html', destinos=destinos_list)
-        
-        paquete = Paquete(
-            nombre=nombre,
-            origen=request.form.get('origen', '').strip() or None,
-            fecha_inicio=fecha_inicio,
-            fecha_fin=fecha_fin,
-            precio_total=precio_total,
-            disponibles=disponibles
-        )
-        db.session.add(paquete)
-        db.session.flush()
-        
-        destinos_ids = request.form.getlist('destinos')
-        for destino_id in destinos_ids:
-            if Destino.query.get(destino_id):
-                db.session.add(PaqueteDestino(paquete_id=paquete.id, destino_id=int(destino_id)))
-        
-        db.session.commit()
-        flash('Paquete creado exitosamente', 'success')
-        return redirect('/paquetes')
-    
+    form = PaqueteForm()
     destinos_list = Destino.query.all()
-    return render_template('web/admin/form_paquete.html', destinos=destinos_list)
+    
+    if form.validate_on_submit():
+        try:
+            datos = {
+                'nombre': form.nombre.data,
+                'origen': form.origen.data.strip() if form.origen.data else None,
+                'fecha_inicio': form.fecha_inicio.data,
+                'fecha_fin': form.fecha_fin.data,
+                'precio_total': form.precio_total.data,
+                'disponibles': form.disponibles.data,
+                'destinos': [int(d) for d in request.form.getlist('destinos')]
+            }
+            PaqueteService.crear_paquete(datos)
+            flash('Paquete creado exitosamente', 'success')
+            return redirect('/paquetes')
+        except ValueError as e:
+            flash(f'Error: {str(e)}', 'danger')
+        except Exception as e:
+            flash(f'Error al crear paquete: {str(e)}', 'danger')
+    
+    return render_template('web/admin/form_paquete.html', form=form, destinos=destinos_list)
 
 @bp.route('/api/destinos', methods=['GET'])
 @admin_required
@@ -317,8 +310,6 @@ def crear_paquete_api():
         try:
             fecha_inicio = datetime.strptime(fecha_inicio_str, '%Y-%m-%d').date()
             fecha_fin = datetime.strptime(fecha_fin_str, '%Y-%m-%d').date()
-            if fecha_fin < fecha_inicio:
-                return jsonify({'error': 'La fecha fin debe ser posterior a la fecha inicio'}), 400
         except ValueError as e:
             return jsonify({'error': f'Error en fechas: {str(e)}'}), 400
         
@@ -330,24 +321,22 @@ def crear_paquete_api():
         except (ValueError, TypeError):
             return jsonify({'error': 'El precio y disponibles deben ser números válidos'}), 400
         
-        paquete = Paquete(
-            nombre=nombre,
-            origen=origen,
-            fecha_inicio=fecha_inicio,
-            fecha_fin=fecha_fin,
-            precio_total=precio_total,
-            disponibles=disponibles
-        )
-        db.session.add(paquete)
-        db.session.flush()
+        datos = {
+            'nombre': nombre,
+            'origen': origen,
+            'fecha_inicio': fecha_inicio,
+            'fecha_fin': fecha_fin,
+            'precio_total': precio_total,
+            'disponibles': disponibles,
+            'destinos': destinos_ids
+        }
         
-        for destino_id in destinos_ids:
-            if Destino.query.get(destino_id):
-                db.session.add(PaqueteDestino(paquete_id=paquete.id, destino_id=int(destino_id)))
-        
-        db.session.commit()
+        paquete = PaqueteService.crear_paquete(datos)
         return jsonify({'success': True, 'message': 'Paquete creado exitosamente', 'paquete': paquete.to_dict()}), 201
         
+    except ValueError as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 400
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': f'Error al crear paquete: {str(e)}'}), 500
@@ -356,70 +345,39 @@ def crear_paquete_api():
 @admin_required
 def editar_paquete(id):
     paquete = Paquete.query.get_or_404(id)
-    if request.method == 'POST':
-        nombre = request.form.get('nombre', '').strip()
-        fecha_inicio_str = request.form.get('fecha_inicio', '').strip()
-        fecha_fin_str = request.form.get('fecha_fin', '').strip()
-        precio_total_str = request.form.get('precio_total', '').strip()
-        disponibles_str = request.form.get('disponibles', '20').strip()
-        
-        if not nombre:
-            flash('El nombre es obligatorio', 'danger')
-            destinos_list = Destino.query.all()
-            destinos_seleccionados = [pd.destino_id for pd in paquete.destinos]
-            return render_template('web/admin/form_paquete.html', paquete=paquete, destinos=destinos_list, destinos_seleccionados=destinos_seleccionados)
-        
-        try:
-            fecha_inicio = datetime.strptime(fecha_inicio_str, '%Y-%m-%d').date()
-            fecha_fin = datetime.strptime(fecha_fin_str, '%Y-%m-%d').date()
-            if fecha_fin < fecha_inicio:
-                raise ValueError('La fecha fin debe ser posterior a la fecha inicio')
-        except ValueError as e:
-            flash(f'Error en fechas: {str(e)}', 'danger')
-            destinos_list = Destino.query.all()
-            destinos_seleccionados = [pd.destino_id for pd in paquete.destinos]
-            return render_template('web/admin/form_paquete.html', paquete=paquete, destinos=destinos_list, destinos_seleccionados=destinos_seleccionados)
-        
-        try:
-            precio_total = float(precio_total_str)
-            disponibles = int(disponibles_str)
-            if precio_total < 0 or disponibles < 0:
-                raise ValueError
-        except (ValueError, TypeError):
-            flash('El precio y disponibles deben ser números válidos mayores o iguales a 0', 'danger')
-            destinos_list = Destino.query.all()
-            destinos_seleccionados = [pd.destino_id for pd in paquete.destinos]
-            return render_template('web/admin/form_paquete.html', paquete=paquete, destinos=destinos_list, destinos_seleccionados=destinos_seleccionados)
-        
-        paquete.nombre = nombre
-        paquete.origen = request.form.get('origen', '').strip() or None
-        paquete.fecha_inicio = fecha_inicio
-        paquete.fecha_fin = fecha_fin
-        paquete.precio_total = precio_total
-        paquete.disponibles = disponibles
-        
-        # Actualizar destinos
-        PaqueteDestino.query.filter_by(paquete_id=paquete.id).delete()
-        destinos_ids = request.form.getlist('destinos')
-        for destino_id in destinos_ids:
-            if Destino.query.get(destino_id):
-                db.session.add(PaqueteDestino(paquete_id=paquete.id, destino_id=int(destino_id)))
-        
-        db.session.commit()
-        flash('Paquete actualizado exitosamente', 'success')
-        return redirect('/paquetes')
-    
+    form = PaqueteForm(obj=paquete)
     destinos_list = Destino.query.all()
     destinos_seleccionados = [pd.destino_id for pd in paquete.destinos]
-    return render_template('web/admin/form_paquete.html', paquete=paquete, destinos=destinos_list, destinos_seleccionados=destinos_seleccionados)
+    
+    if form.validate_on_submit():
+        try:
+            datos = {
+                'nombre': form.nombre.data,
+                'origen': form.origen.data.strip() if form.origen.data else None,
+                'fecha_inicio': form.fecha_inicio.data,
+                'fecha_fin': form.fecha_fin.data,
+                'precio_total': form.precio_total.data,
+                'disponibles': form.disponibles.data,
+                'destinos': [int(d) for d in request.form.getlist('destinos')]
+            }
+            PaqueteService.actualizar_paquete(id, datos)
+            flash('Paquete actualizado exitosamente', 'success')
+            return redirect('/paquetes')
+        except ValueError as e:
+            flash(f'Error: {str(e)}', 'danger')
+        except Exception as e:
+            flash(f'Error al actualizar paquete: {str(e)}', 'danger')
+    
+    return render_template('web/admin/form_paquete.html', form=form, paquete=paquete, destinos=destinos_list, destinos_seleccionados=destinos_seleccionados)
 
 @bp.route('/paquetes/eliminar/<int:id>', methods=['POST'])
 @admin_required
 def eliminar_paquete(id):
-    paquete = Paquete.query.get_or_404(id)
-    db.session.delete(paquete)
-    db.session.commit()
-    flash('Paquete eliminado exitosamente', 'success')
+    try:
+        PaqueteService.eliminar_paquete(id)
+        flash('Paquete eliminado exitosamente', 'success')
+    except Exception as e:
+        flash(f'Error al eliminar paquete: {str(e)}', 'danger')
     return redirect(url_for('admin.paquetes'))
 
 @bp.route('/paquetes/editar/<int:id>/api', methods=['PUT'])
@@ -427,7 +385,6 @@ def eliminar_paquete(id):
 def editar_paquete_api(id):
     """API para editar paquete desde modal"""
     try:
-        paquete = Paquete.query.get_or_404(id)
         data = request.get_json()
         
         nombre = data.get('nombre', '').strip()
@@ -442,8 +399,6 @@ def editar_paquete_api(id):
         try:
             fecha_inicio = datetime.strptime(fecha_inicio_str, '%Y-%m-%d').date()
             fecha_fin = datetime.strptime(fecha_fin_str, '%Y-%m-%d').date()
-            if fecha_fin < fecha_inicio:
-                return jsonify({'error': 'La fecha fin debe ser posterior a la fecha inicio'}), 400
         except ValueError as e:
             return jsonify({'error': f'Error en fechas: {str(e)}'}), 400
         
@@ -455,23 +410,22 @@ def editar_paquete_api(id):
         except (ValueError, TypeError):
             return jsonify({'error': 'El precio y disponibles deben ser números válidos'}), 400
         
-        paquete.nombre = nombre
-        paquete.origen = data.get('origen', '').strip() or None
-        paquete.fecha_inicio = fecha_inicio
-        paquete.fecha_fin = fecha_fin
-        paquete.precio_total = precio_total
-        paquete.disponibles = disponibles
+        datos = {
+            'nombre': nombre,
+            'origen': data.get('origen', '').strip() or None,
+            'fecha_inicio': fecha_inicio,
+            'fecha_fin': fecha_fin,
+            'precio_total': precio_total,
+            'disponibles': disponibles,
+            'destinos': data.get('destinos', [])
+        }
         
-        # Actualizar destinos
-        PaqueteDestino.query.filter_by(paquete_id=paquete.id).delete()
-        destinos_ids = data.get('destinos', [])
-        for destino_id in destinos_ids:
-            if Destino.query.get(destino_id):
-                db.session.add(PaqueteDestino(paquete_id=paquete.id, destino_id=int(destino_id)))
-        
-        db.session.commit()
+        paquete = PaqueteService.actualizar_paquete(id, datos)
         return jsonify({'success': True, 'message': 'Paquete actualizado exitosamente', 'paquete': paquete.to_dict()}), 200
         
+    except ValueError as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 400
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': f'Error al actualizar paquete: {str(e)}'}), 500
@@ -481,36 +435,13 @@ def editar_paquete_api(id):
 def eliminar_paquete_api(id):
     """API para eliminar paquete desde la página pública"""
     try:
-        paquete = Paquete.query.get_or_404(id)
-        nombre_paquete = paquete.nombre
-        db.session.delete(paquete)
-        db.session.commit()
+        nombre_paquete = PaqueteService.eliminar_paquete(id)
         return jsonify({'success': True, 'message': f'Paquete "{nombre_paquete}" eliminado exitosamente'}), 200
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': f'Error al eliminar paquete: {str(e)}'}), 500
 
 # ========== CRUD RESERVAS ==========
-@bp.route('/reservas/editar/<int:id>', methods=['GET', 'POST'])
-@admin_required
-def editar_reserva(id):
-    reserva = Reserva.query.get_or_404(id)
-    if request.method == 'POST':
-        reserva.estado = request.form.get('estado')
-        db.session.commit()
-        flash('Reserva actualizada exitosamente', 'success')
-        return redirect(url_for('admin.reservas'))
-    paquetes = Paquete.query.all()
-    return render_template('web/admin/form_reserva.html', reserva=reserva, paquetes=paquetes)
-
-@bp.route('/reservas/eliminar/<int:id>', methods=['POST'])
-@admin_required
-def eliminar_reserva(id):
-    reserva = Reserva.query.get_or_404(id)
-    # Restaurar cupo del paquete
-    reserva.paquete.disponibles += 1
-    db.session.delete(reserva)
-    db.session.commit()
-    flash('Reserva eliminada exitosamente', 'success')
-    return redirect(url_for('admin.reservas'))
+# NOTA: Las reservas son de solo lectura para administradores
+# Las reservas solo pueden ser creadas por los clientes y no pueden ser modificadas ni eliminadas
 

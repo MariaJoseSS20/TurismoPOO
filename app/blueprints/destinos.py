@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify
-from app import db
+from app import db, csrf
 from app.models.destino import Destino
 
 bp = Blueprint('destinos', __name__)
@@ -44,43 +44,69 @@ def obtener(id):
     return jsonify(Destino.query.get_or_404(id).to_dict())
 
 @bp.route('', methods=['POST'])
+@csrf.exempt
 def crear():
-    data = request.get_json()
-    if not data or not data.get('nombre') or not data.get('costo_base'):
-        return jsonify({'error': 'Nombre y costo_base requeridos'}), 400
-    
-    actividades = ','.join(data.get('actividades', [])) if isinstance(data.get('actividades'), list) else data.get('actividades')
-    destino = Destino(
-        nombre=data['nombre'],
-        origen=data.get('origen'),
-        descripcion=data.get('descripcion'),
-        actividades=actividades,
-        costo_base=data['costo_base']
-    )
-    db.session.add(destino)
-    db.session.commit()
-    return jsonify(destino.to_dict()), 201
+    """API pública para crear destino (usa servicio)"""
+    try:
+        data = request.get_json()
+        if not data or not data.get('nombre') or not data.get('costo_base'):
+            return jsonify({'error': 'Nombre y costo_base requeridos'}), 400
+        
+        actividades = ','.join(data.get('actividades', [])) if isinstance(data.get('actividades'), list) else data.get('actividades')
+        
+        from app.services.destino_service import DestinoService
+        datos = {
+            'nombre': data['nombre'],
+            'origen': data.get('origen'),
+            'descripcion': data.get('descripcion'),
+            'actividades': actividades,
+            'costo_base': data['costo_base']
+        }
+        destino = DestinoService.crear_destino(datos)
+        return jsonify(destino.to_dict()), 201
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
 
 @bp.route('/<int:id>', methods=['PUT'])
+@csrf.exempt
 def actualizar(id):
-    destino = Destino.query.get_or_404(id)
-    data = request.get_json()
-    if 'nombre' in data:
-        destino.nombre = data['nombre']
-    if 'origen' in data:
-        destino.origen = data['origen']
-    if 'descripcion' in data:
-        destino.descripcion = data['descripcion']
-    if 'actividades' in data:
-        destino.actividades = ','.join(data['actividades']) if isinstance(data['actividades'], list) else data['actividades']
-    if 'costo_base' in data:
-        destino.costo_base = data['costo_base']
-    db.session.commit()
-    return jsonify(destino.to_dict())
+    """API pública para actualizar destino (usa servicio)"""
+    try:
+        from app.services.destino_service import DestinoService
+        data = request.get_json()
+        
+        actividades = data.get('actividades')
+        if actividades and isinstance(actividades, list):
+            actividades = ','.join(actividades)
+        
+        datos = {}
+        if 'nombre' in data:
+            datos['nombre'] = data['nombre']
+        if 'origen' in data:
+            datos['origen'] = data['origen']
+        if 'descripcion' in data:
+            datos['descripcion'] = data['descripcion']
+        if actividades is not None:
+            datos['actividades'] = actividades
+        if 'costo_base' in data:
+            datos['costo_base'] = data['costo_base']
+        
+        destino = DestinoService.actualizar_destino(id, datos)
+        return jsonify(destino.to_dict())
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
 
 @bp.route('/<int:id>', methods=['DELETE'])
+@csrf.exempt
 def eliminar(id):
-    db.session.delete(Destino.query.get_or_404(id))
-    db.session.commit()
-    return jsonify({'mensaje': 'Eliminado'}), 200
+    """API pública para eliminar destino (usa servicio)"""
+    try:
+        from app.services.destino_service import DestinoService
+        DestinoService.eliminar_destino(id)
+        return jsonify({'mensaje': 'Eliminado'}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
 

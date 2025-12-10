@@ -28,7 +28,7 @@
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {% if request.path == '/destinos' %}active{% endif %}" href="{{ url_for('web.destinos') }}">
+                        <a class="nav-link {% if request.endpoint == 'admin.listar_destinos' or request.endpoint == 'admin.detalle_destino' or request.endpoint == 'admin.crear_destino' or request.endpoint == 'admin.editar_destino' %}active{% endif %}" href="{{ url_for('admin.listar_destinos') }}">
                             <i class="bi bi-geo-alt-fill"></i> Destinos
                         </a>
                     </li>
@@ -48,6 +48,8 @@
 {% endblock %}
 
 {% block extra_css %}
+<!-- CSS personalizado -->
+<link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}">
 <style>
     .sidebar {
         min-height: 100vh;

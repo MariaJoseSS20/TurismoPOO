@@ -1,4 +1,5 @@
 from flask import Blueprint, request, jsonify, session
+from app import csrf
 import time
 from app.models.paquete import Paquete
 
@@ -10,6 +11,7 @@ def init_carrito():
         session['carrito'] = {'paquetes': []}
 
 @bp.route('', methods=['GET'])
+@csrf.exempt
 def obtener_carrito():
     """Obtiene el contenido del carrito"""
     init_carrito()
@@ -21,25 +23,40 @@ def obtener_carrito():
     
     # Paquetes
     for idx, item in enumerate(carrito.get('paquetes', [])):
-        paquete = Paquete.query.get(item['id'])
-        if paquete:
-            cantidad = item.get('cantidad', 1)
-            # Agregar índice único para distinguir items duplicados
-            items.append({
-                'tipo': 'paquete',
-                'id': paquete.id,
-                'nombre': paquete.nombre,
-                'precio': float(paquete.precio_total),
-                'cantidad': cantidad,
-                'subtotal': float(paquete.precio_total) * cantidad,
-                'disponibles': paquete.disponibles,
-                'fecha_inicio': paquete.fecha_inicio.isoformat() if paquete.fecha_inicio else None,
-                'fecha_fin': paquete.fecha_fin.isoformat() if paquete.fecha_fin else None,
-                'destinos': [pd.destino.to_dict() for pd in paquete.destinos],  # Incluir información de destinos
-                'carrito_index': idx,  # Índice único en el carrito
-                'timestamp': item.get('timestamp', idx)  # Timestamp único si existe
-            })
-            total += float(paquete.precio_total) * cantidad
+        try:
+            paquete_id = item.get('id')
+            if not paquete_id:
+                continue
+            paquete = Paquete.query.get(paquete_id)
+            if paquete:
+                cantidad = item.get('cantidad', 1)
+                # Agregar índice único para distinguir items duplicados
+                items.append({
+                    'tipo': 'paquete',
+                    'id': paquete.id,
+                    'nombre': paquete.nombre,
+                    'precio': float(paquete.precio_total),
+                    'cantidad': cantidad,
+                    'subtotal': float(paquete.precio_total) * cantidad,
+                    'disponibles': paquete.disponibles,
+                    'fecha_inicio': paquete.fecha_inicio.isoformat() if paquete.fecha_inicio else None,
+                    'fecha_fin': paquete.fecha_fin.isoformat() if paquete.fecha_fin else None,
+                    'destinos': [pd.destino.to_dict() if hasattr(pd.destino, 'to_dict') else {
+                        'id': pd.destino.id,
+                        'nombre': pd.destino.nombre,
+                        'descripcion': pd.destino.descripcion or '',
+                        'actividades': pd.destino.actividades.split(',') if pd.destino.actividades else []
+                    } for pd in paquete.destinos],  # Incluir información de destinos
+                    'carrito_index': idx,  # Índice único en el carrito
+                    'timestamp': item.get('timestamp', idx)  # Timestamp único si existe
+                })
+                total += float(paquete.precio_total) * cantidad
+        except Exception as e:
+            # Si hay un error con un item, continuar con los demás
+            import traceback
+            print(f"Error procesando item del carrito (índice {idx}): {e}")
+            traceback.print_exc()
+            continue
     
     return jsonify({
         'items': items,
@@ -48,6 +65,7 @@ def obtener_carrito():
     })
 
 @bp.route('/agregar', methods=['POST'])
+@csrf.exempt
 def agregar_al_carrito():
     """Agrega un item al carrito"""
     # Solo clientes pueden agregar al carrito
@@ -113,6 +131,7 @@ def agregar_al_carrito():
     })
 
 @bp.route('/actualizar', methods=['POST'])
+@csrf.exempt
 def actualizar_cantidad():
     """Actualiza la cantidad de un item en el carrito"""
     init_carrito()
@@ -162,6 +181,7 @@ def actualizar_cantidad():
     })
 
 @bp.route('/eliminar', methods=['POST'])
+@csrf.exempt
 def eliminar_del_carrito():
     """Elimina un item del carrito usando timestamp o índice"""
     init_carrito()
@@ -217,6 +237,7 @@ def eliminar_del_carrito():
     })
 
 @bp.route('/limpiar', methods=['POST'])
+@csrf.exempt
 def limpiar_carrito():
     """Limpia todo el carrito"""
     session['carrito'] = {'paquetes': []}
@@ -224,6 +245,7 @@ def limpiar_carrito():
     return jsonify({'success': True, 'message': 'Carrito limpiado'})
 
 @bp.route('/cantidad', methods=['GET'])
+@csrf.exempt
 def cantidad_carrito():
     """Obtiene la cantidad de items en el carrito"""
     init_carrito()

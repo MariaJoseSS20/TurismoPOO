@@ -6,14 +6,6 @@ bp = Blueprint('web', __name__)
 def index():
     return render_template('web/index.html')
 
-@bp.route('/destinos')
-def destinos():
-    # Solo administradores pueden acceder a la página de destinos
-    if session.get('usuario_rol') != 'admin':
-        flash('Acceso denegado. Solo administradores pueden acceder a esta página.', 'warning')
-        return redirect(url_for('web.index'))
-    return render_template('web/destinos.html')
-
 @bp.route('/paquetes')
 def paquetes():
     # Pasar información de sesión al template para JavaScript
@@ -36,7 +28,9 @@ def carrito():
             usuario_data = {
                 'nombre_completo': usuario.nombre_completo,
                 'rut': usuario.rut,
-                'email': usuario.email
+                'email': usuario.email,
+                'telefono': usuario.telefono or '',
+                'fecha_nacimiento': usuario.fecha_nacimiento.strftime('%d/%m/%Y') if usuario.fecha_nacimiento else ''
             }
     
     return render_template('web/carrito.html', session=session, usuario_data=usuario_data)

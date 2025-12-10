@@ -1,8 +1,9 @@
 from flask import Blueprint, request, jsonify, session
-from app import db
+from app import db, csrf
 from app.models.reserva import Reserva
 from app.models.paquete import Paquete
 from app.models.viajero import Viajero
+from app.services.reserva_service import ReservaService
 from datetime import datetime
 
 bp = Blueprint('reservas', __name__)
@@ -16,6 +17,7 @@ def obtener(id):
     return jsonify(Reserva.query.get_or_404(id).to_dict())
 
 @bp.route('', methods=['POST'])
+@csrf.exempt
 def crear():
     if 'usuario_id' not in session:
         return jsonify({'error': 'Debes iniciar sesión'}), 401
@@ -24,79 +26,42 @@ def crear():
     if not data or not data.get('paquete_id'):
         return jsonify({'error': 'paquete_id requerido'}), 400
     
-    usuario_id = session['usuario_id']
-    
-    paquete = Paquete.query.get_or_404(data['paquete_id'])
-    numero_pasajeros = data.get('numero_pasajeros', 1)
-    
-    if numero_pasajeros < 1:
-        return jsonify({'error': 'El número de pasajeros debe ser al menos 1'}), 400
-    
-    if paquete.disponibles < numero_pasajeros:
-        return jsonify({'error': f'No hay suficientes cupos disponibles. Disponibles: {paquete.disponibles}, Solicitados: {numero_pasajeros}'}), 400
-    
-    reserva = Reserva(
-        usuario_id=usuario_id,
-        paquete_id=data['paquete_id'],
-        estado=data.get('estado', 'confirmada'),
-        numero_pasajeros=numero_pasajeros,
-        telefono_contacto=data.get('telefono_contacto'),
-        comentarios=data.get('comentarios')
-    )
-    paquete.disponibles -= numero_pasajeros
-    db.session.add(reserva)
-    db.session.flush()  # Para obtener el ID de la reserva
-    
-    # Guardar datos de viajeros si se proporcionan
-    viajeros_data = data.get('viajeros', [])
-    if viajeros_data and len(viajeros_data) > 0:
-        for viajero_data in viajeros_data:
-            fecha_nacimiento = None
-            if viajero_data.get('fecha_nacimiento'):
-                try:
-                    fecha_nacimiento = datetime.strptime(viajero_data['fecha_nacimiento'], '%Y-%m-%d').date()
-                except:
-                    pass
-            
-            viajero = Viajero(
-                reserva_id=reserva.id,
-                nombre_completo=viajero_data.get('nombre_completo', ''),
-                rut=viajero_data.get('rut', ''),
-                fecha_nacimiento=fecha_nacimiento,
-                telefono=viajero_data.get('telefono'),
-                email=viajero_data.get('email')
-            )
-            db.session.add(viajero)
-    
-    db.session.commit()
-    return jsonify(reserva.to_dict()), 201
+    try:
+        usuario_id = session['usuario_id']
+        reserva = ReservaService.crear_reserva(usuario_id, data)
+        return jsonify(reserva.to_dict()), 201
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'Error al crear reserva: {str(e)}'}), 500
 
 @bp.route('/<int:id>', methods=['PUT'])
+@csrf.exempt
 def actualizar(id):
-    reserva = Reserva.query.get_or_404(id)
     data = request.get_json()
-    estado_anterior = reserva.estado
     
-    if 'estado' in data:
-        reserva.estado = data['estado']
-        if estado_anterior == 'confirmada' and data['estado'] == 'cancelada':
-            reserva.paquete.disponibles += reserva.numero_pasajeros
-        elif estado_anterior == 'cancelada' and data['estado'] == 'confirmada':
-            if reserva.paquete.disponibles >= reserva.numero_pasajeros:
-                reserva.paquete.disponibles -= reserva.numero_pasajeros
-            else:
-                return jsonify({'error': 'Sin cupos suficientes'}), 400
-    db.session.commit()
-    return jsonify(reserva.to_dict())
+    if 'estado' not in data:
+        return jsonify({'error': 'El campo estado es requerido'}), 400
+    
+    try:
+        reserva = ReservaService.actualizar_estado_reserva(id, data['estado'])
+        return jsonify(reserva.to_dict())
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'Error al actualizar reserva: {str(e)}'}), 500
 
 @bp.route('/<int:id>', methods=['DELETE'])
+@csrf.exempt
 def eliminar(id):
-    reserva = Reserva.query.get_or_404(id)
-    if reserva.estado == 'confirmada':
-        reserva.paquete.disponibles += reserva.numero_pasajeros
-    db.session.delete(reserva)
-    db.session.commit()
-    return jsonify({'mensaje': 'Eliminado'}), 200
+    try:
+        mensaje = ReservaService.eliminar_reserva(id)
+        return jsonify({'mensaje': mensaje}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'Error al eliminar reserva: {str(e)}'}), 500
 
 @bp.route('/usuario/<int:usuario_id>', methods=['GET'])
 def por_usuario(usuario_id):

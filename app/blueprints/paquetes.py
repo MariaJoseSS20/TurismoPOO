@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify
-from app import db
+from app import db, csrf
 from app.models.paquete import Paquete, PaqueteDestino
 from app.models.destino import Destino
 from sqlalchemy.orm import joinedload
@@ -39,52 +39,75 @@ def obtener(id):
     return jsonify(Paquete.query.get_or_404(id).to_dict())
 
 @bp.route('', methods=['POST'])
+@csrf.exempt
 def crear():
-    data = request.get_json()
-    if not data or not data.get('nombre') or not data.get('fecha_inicio') or not data.get('fecha_fin'):
-        return jsonify({'error': 'Nombre, fecha_inicio y fecha_fin requeridos'}), 400
-    
-    paquete = Paquete(
-        nombre=data['nombre'],
-        origen=data.get('origen'),
-        fecha_inicio=datetime.strptime(data['fecha_inicio'], '%Y-%m-%d').date(),
-        fecha_fin=datetime.strptime(data['fecha_fin'], '%Y-%m-%d').date(),
-        precio_total=data.get('precio_total', 0),
-        disponibles=data.get('disponibles', 20)
-    )
-    db.session.add(paquete)
-    db.session.flush()
-    
-    if 'destinos' in data:
-        for destino_id in data['destinos']:
-            if Destino.query.get(destino_id):
-                db.session.add(PaqueteDestino(paquete_id=paquete.id, destino_id=destino_id))
-    
-    db.session.commit()
-    return jsonify(paquete.to_dict()), 201
+    """API pública para crear paquete (usa servicio)"""
+    try:
+        from app.services.paquete_service import PaqueteService
+        data = request.get_json()
+        if not data or not data.get('nombre') or not data.get('fecha_inicio') or not data.get('fecha_fin'):
+            return jsonify({'error': 'Nombre, fecha_inicio y fecha_fin requeridos'}), 400
+        
+        datos = {
+            'nombre': data['nombre'],
+            'origen': data.get('origen'),
+            'fecha_inicio': datetime.strptime(data['fecha_inicio'], '%Y-%m-%d').date(),
+            'fecha_fin': datetime.strptime(data['fecha_fin'], '%Y-%m-%d').date(),
+            'precio_total': data.get('precio_total', 0),
+            'disponibles': data.get('disponibles', 20),
+            'destinos': data.get('destinos', [])
+        }
+        paquete = PaqueteService.crear_paquete(datos)
+        return jsonify(paquete.to_dict()), 201
+    except ValueError as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
 
 @bp.route('/<int:id>', methods=['PUT'])
+@csrf.exempt
 def actualizar(id):
-    paquete = Paquete.query.get_or_404(id)
-    data = request.get_json()
-    if 'nombre' in data:
-        paquete.nombre = data['nombre']
-    if 'origen' in data:
-        paquete.origen = data['origen']
-    if 'fecha_inicio' in data:
-        paquete.fecha_inicio = datetime.strptime(data['fecha_inicio'], '%Y-%m-%d').date()
-    if 'fecha_fin' in data:
-        paquete.fecha_fin = datetime.strptime(data['fecha_fin'], '%Y-%m-%d').date()
-    if 'precio_total' in data:
-        paquete.precio_total = data['precio_total']
-    if 'disponibles' in data:
-        paquete.disponibles = data['disponibles']
-    db.session.commit()
-    return jsonify(paquete.to_dict())
+    """API pública para actualizar paquete (usa servicio)"""
+    try:
+        from app.services.paquete_service import PaqueteService
+        data = request.get_json()
+        
+        datos = {}
+        if 'nombre' in data:
+            datos['nombre'] = data['nombre']
+        if 'origen' in data:
+            datos['origen'] = data['origen']
+        if 'fecha_inicio' in data:
+            datos['fecha_inicio'] = datetime.strptime(data['fecha_inicio'], '%Y-%m-%d').date()
+        if 'fecha_fin' in data:
+            datos['fecha_fin'] = datetime.strptime(data['fecha_fin'], '%Y-%m-%d').date()
+        if 'precio_total' in data:
+            datos['precio_total'] = data['precio_total']
+        if 'disponibles' in data:
+            datos['disponibles'] = data['disponibles']
+        if 'destinos' in data:
+            datos['destinos'] = data['destinos']
+        
+        paquete = PaqueteService.actualizar_paquete(id, datos)
+        return jsonify(paquete.to_dict())
+    except ValueError as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
 
 @bp.route('/<int:id>', methods=['DELETE'])
+@csrf.exempt
 def eliminar(id):
-    db.session.delete(Paquete.query.get_or_404(id))
-    db.session.commit()
-    return jsonify({'mensaje': 'Eliminado'}), 200
+    """API pública para eliminar paquete (usa servicio)"""
+    try:
+        from app.services.paquete_service import PaqueteService
+        PaqueteService.eliminar_paquete(id)
+        return jsonify({'mensaje': 'Eliminado'}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
 

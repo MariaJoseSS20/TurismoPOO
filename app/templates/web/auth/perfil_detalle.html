@@ -1,0 +1,157 @@
+{% extends "web/base.html" %}
+
+{% block title %}Mi Perfil - Viajes Aventura{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                <h4 class="mb-0 fw-bold">
+                    <i class="bi bi-person-circle"></i> Mi Perfil
+                </h4>
+                <a href="{{ url_for('auth.perfil') }}" class="btn btn-light btn-sm">
+                    <i class="bi bi-pencil"></i> Editar
+                </a>
+            </div>
+            <div class="card-body p-4">
+                <div class="row mb-4">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label text-muted"><strong>Nombre Completo</strong></label>
+                        <p class="mb-0 fs-5">{{ usuario.nombre_completo }}</p>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label text-muted"><strong>RUT</strong></label>
+                        <p class="mb-0 fs-5">{{ usuario.rut }}</p>
+                    </div>
+                </div>
+                
+                <div class="row mb-4">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label text-muted"><strong>Email</strong></label>
+                        <p class="mb-0 fs-5">{{ usuario.email }}</p>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label text-muted"><strong>Fecha de Nacimiento</strong></label>
+                        <p class="mb-0 fs-5">
+                            {{ usuario.fecha_nacimiento.strftime('%d/%m/%Y') if usuario.fecha_nacimiento else 'No especificada' }}
+                        </p>
+                    </div>
+                </div>
+                
+                <div class="row mb-4">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label text-muted"><strong>Teléfono</strong></label>
+                        <p class="mb-0 fs-5">{{ usuario.telefono or 'No especificado' }}</p>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label text-muted"><strong>Rol</strong></label>
+                        <div>
+                            <span class="badge bg-purple fs-6">{{ usuario.rol|title }}</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <label class="form-label text-muted"><strong>Fecha de Registro</strong></label>
+                        <p class="mb-0 fs-5">
+                            {{ usuario.fecha_registro.strftime('%d/%m/%Y') if usuario.fecha_registro else 'N/A' }}
+                        </p>
+                    </div>
+                </div>
+                
+                <div class="d-grid gap-2 d-md-flex justify-content-md-between mt-4">
+                    <a href="{{ url_for('auth.perfil') }}" class="btn btn-primary">
+                        <i class="bi bi-pencil"></i> Editar Perfil
+                    </a>
+                    {% if session.usuario_rol == 'admin' %}
+                    <a href="{{ url_for('admin.dashboard') }}" class="btn btn-outline-secondary">
+                        <i class="bi bi-arrow-left"></i> Volver al Dashboard
+                    </a>
+                    {% else %}
+                    <a href="{{ url_for('web.index') }}" class="btn btn-outline-secondary">
+                        <i class="bi bi-arrow-left"></i> Volver al Inicio
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    {% if session.usuario_rol == 'cliente' and reservas %}
+    <div class="row justify-content-center mt-4">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0 fw-bold">
+                        <i class="bi bi-calendar-check"></i> Mis Reservas
+                    </h4>
+                </div>
+                <div class="card-body p-4">
+                    {% if reservas %}
+                    <div class="row">
+                        {% for reserva in reservas %}
+                        <div class="col-md-6 mb-4">
+                            <div class="card h-100 shadow-sm">
+                                <div class="card-header bg-{{ 'success' if reserva.estado == 'confirmada' else ('danger' if reserva.estado == 'cancelada' else 'secondary') }} text-white">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <span class="badge bg-light text-dark">Reserva #{{ reserva.id }}</span>
+                                        <span class="badge bg-light text-dark">
+                                            {{ reserva.estado|title }}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div class="card-body">
+                                    <h5 class="card-title">{{ reserva.paquete.nombre if reserva.paquete else 'Paquete no disponible' }}</h5>
+                                    <hr>
+                                    <p class="mb-2"><strong><i class="bi bi-calendar"></i> Fecha de Reserva:</strong> 
+                                        {{ reserva.fecha_reserva.strftime('%d/%m/%Y') if reserva.fecha_reserva else 'N/A' }}
+                                    </p>
+                                    {% if reserva.paquete %}
+                                    <p class="mb-2"><strong><i class="bi bi-calendar-event"></i> Viaje:</strong> 
+                                        {{ reserva.paquete.fecha_inicio.strftime('%d/%m/%Y') if reserva.paquete.fecha_inicio else 'N/A' }} - 
+                                        {{ reserva.paquete.fecha_fin.strftime('%d/%m/%Y') if reserva.paquete.fecha_fin else 'N/A' }}
+                                    </p>
+                                    <p class="mb-2"><strong><i class="bi bi-currency-dollar"></i> Total:</strong> 
+                                        ${{ "{:,.0f}".format(reserva.paquete.precio_total) }}
+                                    </p>
+                                    {% endif %}
+                                    <p class="mb-2"><strong><i class="bi bi-people"></i> Pasajeros:</strong> {{ reserva.numero_pasajeros }}</p>
+                                    {% if reserva.telefono_contacto %}
+                                    <p class="mb-2"><strong><i class="bi bi-telephone"></i> Contacto:</strong> {{ reserva.telefono_contacto }}</p>
+                                    {% endif %}
+                                    {% if reserva.comentarios %}
+                                    <p class="mb-2"><strong><i class="bi bi-chat-left-text"></i> Comentarios:</strong><br>
+                                        <small>{{ reserva.comentarios }}</small>
+                                    </p>
+                                    {% endif %}
+                                    {% if reserva.viajeros %}
+                                    <div class="mt-3">
+                                        <strong><i class="bi bi-person-badge"></i> Viajeros:</strong>
+                                        <ul class="list-unstyled ms-3 mt-2">
+                                            {% for viajero in reserva.viajeros %}
+                                            <li>{{ viajero.nombre_completo }} ({{ viajero.rut }})</li>
+                                            {% endfor %}
+                                        </ul>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i> No tienes reservas registradas aún.
+                        <a href="{{ url_for('web.paquetes') }}" class="alert-link">Explora nuestros paquetes</a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+

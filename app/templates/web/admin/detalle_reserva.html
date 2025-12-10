@@ -1,0 +1,206 @@
+{% extends "web/admin/base_admin.html" %}
+
+{% block admin_title %}Detalle de Reserva {{ reserva.id }}{% endblock %}
+
+{% block admin_content %}
+<div class="row">
+    <div class="col-12 mb-3">
+        <a href="{{ url_for('admin.reservas') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Volver a Lista
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Información Principal -->
+    <div class="col-md-8 mb-4">
+        <div class="card shadow-sm">
+            <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-calendar-check"></i> Reserva {{ reserva.id }}
+                        <span class="badge bg-light text-dark ms-2">
+                            {{ reserva.estado|title }}
+                        </span>
+                    </h5>
+            </div>
+            <div class="card-body">
+                <!-- Información del Usuario -->
+                <div class="mb-4">
+                    <h6 class="text-primary border-bottom pb-2">
+                        <i class="bi bi-person-circle"></i> Información del Cliente
+                    </h6>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <strong>Nombre:</strong><br>
+                            {{ reserva.usuario.nombre_completo }}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <strong>Email:</strong><br>
+                            <a href="mailto:{{ reserva.usuario.email }}">{{ reserva.usuario.email }}</a>
+                        </div>
+                        {% if reserva.usuario.telefono %}
+                        <div class="col-md-6 mb-3">
+                            <strong>Teléfono:</strong><br>
+                            {{ reserva.usuario.telefono }}
+                        </div>
+                        {% endif %}
+                        {% if reserva.usuario.rut %}
+                        <div class="col-md-6 mb-3">
+                            <strong>RUT:</strong><br>
+                            {{ reserva.usuario.rut }}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Información del Paquete -->
+                <div class="mb-4">
+                    <h6 class="text-primary border-bottom pb-2">
+                        <i class="bi bi-box-seam"></i> Información del Paquete
+                    </h6>
+                    <div class="row">
+                        <div class="col-md-12 mb-3">
+                            <strong>Nombre del Paquete:</strong><br>
+                            <h5 class="mt-1">{{ reserva.paquete.nombre }}</h5>
+                        </div>
+                        {% if reserva.paquete.origen %}
+                        <div class="col-md-6 mb-3">
+                            <strong>Origen:</strong><br>
+                            {{ reserva.paquete.origen }}
+                        </div>
+                        {% endif %}
+                        <div class="col-md-6 mb-3">
+                            <strong>Fecha del Viaje:</strong><br>
+                            {{ reserva.paquete.fecha_inicio.strftime('%d/%m/%Y') if reserva.paquete.fecha_inicio else 'N/A' }} - 
+                            {{ reserva.paquete.fecha_fin.strftime('%d/%m/%Y') if reserva.paquete.fecha_fin else 'N/A' }}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <strong>Precio Total:</strong><br>
+                            <h5 class="text-success mt-1">${{ "{:,.0f}".format(reserva.paquete.precio_total).replace(',', '.') }}</h5>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <strong>Cupos Disponibles:</strong><br>
+                            <span class="badge {% if reserva.paquete.disponibles > 0 %}bg-success{% else %}bg-danger{% endif %}">
+                                {{ reserva.paquete.disponibles }} disponibles
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Destinos -->
+                {% if reserva.paquete.destinos %}
+                <div class="mb-4">
+                    <h6 class="text-primary border-bottom pb-2">
+                        <i class="bi bi-geo-alt-fill"></i> Destinos
+                    </h6>
+                    <div class="row">
+                        {% for pd in reserva.paquete.destinos %}
+                        <div class="col-md-6 mb-3">
+                            <div class="card border-start border-primary border-3">
+                                <div class="card-body">
+                                    <h6 class="card-title text-dark fw-bold">
+                                        <i class="bi bi-geo-alt-fill text-danger me-1"></i>{{ pd.destino.nombre }}
+                                    </h6>
+                                    {% if pd.destino.descripcion %}
+                                    <p class="card-text small text-muted">{{ pd.destino.descripcion }}</p>
+                                    {% endif %}
+                                    {% if pd.destino.actividades %}
+                                    <div class="mt-2">
+                                        {% for actividad in pd.destino.actividades.split(',') %}
+                                        <span class="badge bg-pastel-info me-1">{{ actividad.strip() }}</span>
+                                        {% endfor %}
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Información de la Reserva -->
+                <div class="mb-4">
+                    <h6 class="text-primary border-bottom pb-2">
+                        <i class="bi bi-info-circle"></i> Detalles de la Reserva
+                    </h6>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <strong>Fecha de Reserva:</strong><br>
+                            {{ reserva.fecha_reserva.strftime('%d/%m/%Y %H:%M') if reserva.fecha_reserva else 'N/A' }}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <strong>Número de Pasajeros:</strong><br>
+                            <span class="badge bg-secondary">{{ reserva.numero_pasajeros }}</span>
+                        </div>
+                        {% if reserva.telefono_contacto %}
+                        <div class="col-md-6 mb-3">
+                            <strong>Teléfono de Contacto:</strong><br>
+                            <a href="tel:{{ reserva.telefono_contacto }}">{{ reserva.telefono_contacto }}</a>
+                        </div>
+                        {% endif %}
+                        <div class="col-md-6 mb-3">
+                            <strong>Estado:</strong><br>
+                            <span class="badge {% if reserva.estado == 'confirmada' %}bg-success{% elif reserva.estado == 'cancelada' %}bg-danger{% else %}bg-secondary{% endif %} fs-6">
+                                {{ reserva.estado|title }}
+                            </span>
+                        </div>
+                        {% if reserva.comentarios %}
+                        <div class="col-md-12 mb-3">
+                            <strong>Comentarios:</strong><br>
+                            <div class="alert alert-light mt-2 mb-0">
+                                <i class="bi bi-chat-left-text"></i> {{ reserva.comentarios }}
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Información de Viajeros -->
+    <div class="col-md-4 mb-4">
+        <div class="card shadow-sm">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0">
+                    <i class="bi bi-people-fill"></i> Viajeros ({{ reserva.numero_pasajeros }})
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if reserva.viajeros %}
+                    {% for viajero in reserva.viajeros %}
+                    <div class="card mb-3 {% if loop.first %}border-primary{% endif %}">
+                        <div class="card-body">
+                            {% if loop.first %}
+                            <span class="badge bg-primary mb-2">Titular</span>
+                            {% endif %}
+                            <h6 class="card-title">{{ viajero.nombre_completo }}</h6>
+                            <div class="small">
+                                {% if viajero.rut %}
+                                <p class="mb-1"><strong>RUT:</strong> {{ viajero.rut }}</p>
+                                {% endif %}
+                                {% if viajero.fecha_nacimiento %}
+                                <p class="mb-1"><strong>Fecha Nacimiento:</strong> {{ viajero.fecha_nacimiento.strftime('%d/%m/%Y') }}</p>
+                                {% endif %}
+                                {% if viajero.telefono %}
+                                <p class="mb-1"><strong>Teléfono:</strong> <a href="tel:{{ viajero.telefono }}">{{ viajero.telefono }}</a></p>
+                                {% endif %}
+                                {% if viajero.email %}
+                                <p class="mb-0"><strong>Email:</strong> <a href="mailto:{{ viajero.email }}">{{ viajero.email }}</a></p>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="alert alert-info mb-0">
+                        <i class="bi bi-info-circle"></i> No hay información de viajeros registrada.
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
