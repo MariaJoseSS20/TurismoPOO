@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify
-from app import db
+from app import db, csrf
 from sqlalchemy import or_, func
 from app.models.usuario import Usuario
 from app.models.destino import Destino
@@ -136,11 +136,15 @@ def crear_destino_api():
         data = request.get_json()
         
         nombre = data.get('nombre', '').strip()
+        descripcion = data.get('descripcion', '').strip() or None
         actividades = data.get('actividades', '').strip() or None
         costo_base_str = data.get('costo_base', '').strip()
         
         if not nombre:
             return jsonify({'error': 'El nombre es obligatorio'}), 400
+        
+        if not descripcion:
+            return jsonify({'error': 'La descripción es obligatoria'}), 400
         
         if not actividades:
             return jsonify({'error': 'Las actividades son obligatorias. Deben estar separadas por comas.'}), 400
@@ -158,7 +162,7 @@ def crear_destino_api():
         datos = {
             'nombre': nombre,
             'origen': data.get('origen', '').strip() or None,
-            'descripcion': data.get('descripcion', '').strip() or None,
+            'descripcion': descripcion,
             'actividades': actividades,
             'costo_base': costo_base
         }
@@ -181,8 +185,8 @@ def editar_destino(id):
             datos = {
                 'nombre': form.nombre.data,
                 'origen': form.origen.data.strip() if form.origen.data else None,
-                'descripcion': form.descripcion.data.strip() if form.descripcion.data else None,
-                'actividades': form.actividades.data.strip() if form.actividades.data else None,
+                'descripcion': form.descripcion.data.strip(),  # Ya validado como obligatorio por el formulario
+                'actividades': form.actividades.data.strip(),  # Ya validado como obligatorio por el formulario
                 'costo_base': form.costo_base.data
             }
             DestinoService.actualizar_destino(id, datos)
@@ -227,14 +231,33 @@ def detalle_destino(id):
     return render_template('web/admin/detalle_destino.html', destino=destino, paquetes=paquetes)
 
 @bp.route('/destinos/eliminar/<int:id>', methods=['POST'])
+@csrf.exempt
 @admin_required
 def eliminar_destino(id):
+    # Verificar si la petición es AJAX/fetch (por el header X-Requested-With o Accept)
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest' or \
+              'application/json' in request.headers.get('Accept', '')
+    
     try:
-        DestinoService.eliminar_destino(id)
-        flash('Destino eliminado exitosamente', 'success')
+        nombre = DestinoService.eliminar_destino(id)
+        if is_ajax:
+            return jsonify({'success': True, 'message': f'Destino "{nombre}" eliminado exitosamente'}), 200
+        else:
+            flash('Destino eliminado exitosamente', 'success')
+            return redirect(url_for('admin.listar_destinos'))
+    except ValueError as e:
+        if is_ajax:
+            return jsonify({'error': str(e)}), 400
+        else:
+            flash(str(e), 'danger')
+            return redirect(url_for('admin.listar_destinos'))
     except Exception as e:
-        flash(f'Error al eliminar destino: {str(e)}', 'danger')
-    return redirect(url_for('admin.listar_destinos'))
+        db.session.rollback()
+        if is_ajax:
+            return jsonify({'error': f'Error al eliminar destino: {str(e)}'}), 500
+        else:
+            flash(f'Error al eliminar destino: {str(e)}', 'danger')
+            return redirect(url_for('admin.listar_destinos'))
 
 # ========== CRUD PAQUETES ==========
 @bp.route('/paquetes/crear', methods=['GET', 'POST'])
@@ -381,6 +404,7 @@ def eliminar_paquete(id):
     return redirect(url_for('admin.paquetes'))
 
 @bp.route('/paquetes/editar/<int:id>/api', methods=['PUT'])
+@csrf.exempt
 @admin_required
 def editar_paquete_api(id):
     """API para editar paquete desde modal"""
@@ -431,6 +455,7 @@ def editar_paquete_api(id):
         return jsonify({'error': f'Error al actualizar paquete: {str(e)}'}), 500
 
 @bp.route('/paquetes/eliminar/<int:id>/api', methods=['DELETE'])
+@csrf.exempt
 @admin_required
 def eliminar_paquete_api(id):
     """API para eliminar paquete desde la página pública"""

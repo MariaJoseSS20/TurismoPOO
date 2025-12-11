@@ -3,14 +3,18 @@
 {% block title %}Carrito de Compras - Viajes Aventura{% endblock %}
 
 {% block content %}
+<script>
+    // Pasar datos del usuario directamente a JavaScript (antes del DOMContentLoaded)
+    window.USUARIO_DATA = {% if usuario_data %}{{ usuario_data|tojson|safe }}{% else %}null{% endif %};
+</script>
 <div id="carrito-page" 
-     {% if usuario_data %}data-usuario-data="{{ usuario_data|tojson }}"{% else %}data-usuario-data="null"{% endif %}
-     data-tiene-usuario="{{ 'true' if session.usuario_id else 'false' }}">
+     data-tiene-usuario="{{ 'true' if session.usuario_id else 'false' }}"
+     data-usuario-rol="{{ usuario_rol|default('') }}">
 <div class="container py-5">
     <div class="row">
         <div class="col-12">
             <h1 class="mb-4 fw-bold">
-                <i class="bi bi-cart-fill text-primary me-2"></i>Carrito de Compras
+                <i class="bi bi-cart-fill text-success me-2"></i>Carrito de Compras
             </h1>
         </div>
     </div>

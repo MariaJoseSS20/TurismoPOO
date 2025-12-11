@@ -6,22 +6,10 @@
 <div data-es-admin="{{ 'true' if session.usuario_rol == 'admin' else 'false' }}" id="paquetes-page">
 <div class="card mb-5" style="background: linear-gradient(135deg, var(--primary-blue) 0%, var(--dark-blue) 100%); border: none;">
     <div class="card-body p-5 text-center text-white">
-        <div class="d-flex justify-content-between align-items-center">
-            <div class="flex-fill"></div>
-            <div class="flex-fill text-center">
-                <h1 class="display-4 fw-semibold mb-3 text-white">
-                    <i class="bi bi-box-seam-fill"></i> Paquetes Turísticos
-                </h1>
-                <p class="lead mb-0 text-white-50">Encuentra el paquete perfecto para tu próxima aventura</p>
-            </div>
-            <div class="flex-fill text-end">
-                {% if session.usuario_rol == 'admin' %}
-                <button type="button" class="btn btn-light btn-lg" data-bs-toggle="modal" data-bs-target="#modalCrearPaquete">
-                    <i class="bi bi-plus-circle"></i> Crear Paquete
-                </button>
-                {% endif %}
-            </div>
-        </div>
+        <h1 class="display-4 fw-semibold mb-3 text-white">
+            <i class="bi bi-box-seam-fill"></i> Paquetes Turísticos
+        </h1>
+        <p class="lead mb-0 text-white-50">Encuentra el paquete perfecto para tu próxima aventura</p>
     </div>
 </div>
 
@@ -69,6 +57,14 @@
         </form>
     </div>
 </div>
+
+{% if session.usuario_rol == 'admin' %}
+<div class="mb-3 d-flex justify-content-end">
+    <button type="button" class="btn btn-success btn-lg" data-bs-toggle="modal" data-bs-target="#modalCrearPaquete">
+        <i class="bi bi-plus-circle"></i> Crear Paquete
+    </button>
+</div>
+{% endif %}
 
 <div id="paquetes-container">
     <div class="text-center py-3">
@@ -137,7 +133,7 @@
                                 <div class="spinner-border spinner-border-sm" role="status">
                                     <span class="visually-hidden">Cargando...</span>
                                 </div>
-                                <p class="mt-2 mb-0">Cargando destinos...</p>
+                                <p class="mt-2 mb-0">Cargando destino...</p>
                             </div>
                         </div>
                     </div>
@@ -211,7 +207,7 @@
                                 <div class="spinner-border spinner-border-sm" role="status">
                                     <span class="visually-hidden">Cargando...</span>
                                 </div>
-                                <p class="mt-2 mb-0">Cargando destinos...</p>
+                                <p class="mt-2 mb-0">Cargando destino...</p>
                             </div>
                         </div>
                     </div>

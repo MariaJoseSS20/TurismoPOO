@@ -8,45 +8,119 @@ let carritoItems = [];
 let carritoTotal = 0;
 let usuarioData = null;
 let tieneUsuario = false;
+let usuarioRol = '';
+let datosViajerosGuardados = {}; // Para preservar datos de viajeros al recargar
 
 // Inicialización
 document.addEventListener('DOMContentLoaded', function() {
-    // Obtener datos del usuario desde data attributes
+    // Obtener datos del usuario desde la variable global
     const carritoPage = document.getElementById('carrito-page');
     if (carritoPage) {
-        const usuarioDataJson = carritoPage.dataset.usuarioData;
-        console.log('Usuario data JSON raw:', usuarioDataJson);
-        if (usuarioDataJson && usuarioDataJson !== 'null' && usuarioDataJson.trim() !== '') {
-            try {
-                // Limpiar el JSON si tiene caracteres problemáticos de HTML
-                let cleanedJson = usuarioDataJson
-                    .replace(/&quot;/g, '"')
-                    .replace(/&#39;/g, "'")
-                    .replace(/&amp;/g, '&')
-                    .replace(/&lt;/g, '<')
-                    .replace(/&gt;/g, '>');
-                usuarioData = JSON.parse(cleanedJson);
-                console.log('Usuario data cargado:', usuarioData);
-            } catch (e) {
-                console.error('Error parsing usuario data:', e);
-                console.error('Raw data:', usuarioDataJson);
-                usuarioData = null; // Asegurar que sea null si hay error
-            }
+        // Obtener datos desde la variable global window.USUARIO_DATA
+        if (typeof window.USUARIO_DATA !== 'undefined' && window.USUARIO_DATA !== null) {
+            usuarioData = window.USUARIO_DATA;
         } else {
-            console.log('No hay datos de usuario o es null');
             usuarioData = null;
         }
         tieneUsuario = carritoPage.dataset.tieneUsuario === 'true';
-        console.log('Tiene usuario:', tieneUsuario, 'Usuario data:', usuarioData);
+        usuarioRol = carritoPage.dataset.usuarioRol || '';
     }
     
     cargarCarrito();
 });
 
 /**
+ * Guardar datos de viajeros antes de recargar el carrito
+ */
+function guardarDatosViajeros() {
+    datosViajerosGuardados = {};
+    document.querySelectorAll('.viajero-nombre, .viajero-rut, .viajero-email, .viajero-telefono, .viajero-fecha, .numero-pasajeros-paquete').forEach(input => {
+        const itemId = input.getAttribute('data-item-id');
+        if (!itemId) return;
+        
+        if (!datosViajerosGuardados[itemId]) {
+            datosViajerosGuardados[itemId] = {
+                numeroPasajeros: null,
+                viajeros: {}
+            };
+        }
+        
+        if (input.classList.contains('numero-pasajeros-paquete')) {
+            datosViajerosGuardados[itemId].numeroPasajeros = input.value;
+        } else {
+            const viajeroNum = input.getAttribute('data-viajero');
+            if (viajeroNum) {
+                if (!datosViajerosGuardados[itemId].viajeros[viajeroNum]) {
+                    datosViajerosGuardados[itemId].viajeros[viajeroNum] = {};
+                }
+                const campo = input.classList.contains('viajero-nombre') ? 'nombre' :
+                             input.classList.contains('viajero-rut') ? 'rut' :
+                             input.classList.contains('viajero-email') ? 'email' :
+                             input.classList.contains('viajero-telefono') ? 'telefono' :
+                             input.classList.contains('viajero-fecha') ? 'fecha' : null;
+                if (campo) {
+                    datosViajerosGuardados[itemId].viajeros[viajeroNum][campo] = input.value;
+                }
+            }
+        }
+    });
+}
+
+/**
+ * Restaurar datos de viajeros después de regenerar el carrito
+ */
+function restaurarDatosViajeros() {
+    Object.keys(datosViajerosGuardados).forEach(itemId => {
+        const datos = datosViajerosGuardados[itemId];
+        
+        // Restaurar número de pasajeros
+        if (datos.numeroPasajeros) {
+            const numeroPasajerosInput = document.querySelector(`.numero-pasajeros-paquete[data-item-id="${itemId}"]`);
+            if (numeroPasajerosInput) {
+                numeroPasajerosInput.value = datos.numeroPasajeros;
+                numeroPasajerosInput.dispatchEvent(new Event('input'));
+            }
+        }
+        
+        // Restaurar datos de cada viajero
+        Object.keys(datos.viajeros).forEach(viajeroNum => {
+            const viajeroData = datos.viajeros[viajeroNum];
+            if (viajeroData.nombre) {
+                const nombreInput = document.querySelector(`.viajero-nombre[data-item-id="${itemId}"][data-viajero="${viajeroNum}"]`);
+                if (nombreInput) nombreInput.value = viajeroData.nombre;
+            }
+            if (viajeroData.rut) {
+                const rutInput = document.querySelector(`.viajero-rut[data-item-id="${itemId}"][data-viajero="${viajeroNum}"]`);
+                if (rutInput) rutInput.value = viajeroData.rut;
+            }
+            if (viajeroData.email) {
+                const emailInput = document.querySelector(`.viajero-email[data-item-id="${itemId}"][data-viajero="${viajeroNum}"]`);
+                if (emailInput) emailInput.value = viajeroData.email;
+            }
+            if (viajeroData.telefono) {
+                const telefonoInput = document.querySelector(`.viajero-telefono[data-item-id="${itemId}"][data-viajero="${viajeroNum}"]`);
+                if (telefonoInput) telefonoInput.value = viajeroData.telefono;
+            }
+            if (viajeroData.fecha) {
+                const fechaInput = document.querySelector(`.viajero-fecha[data-item-id="${itemId}"][data-viajero="${viajeroNum}"]`);
+                if (fechaInput) {
+                    fechaInput.value = viajeroData.fecha;
+                    if (fechaInput._flatpickr) {
+                        fechaInput._flatpickr.setDate(viajeroData.fecha, false);
+                    }
+                }
+            }
+        });
+    });
+}
+
+/**
  * Cargar carrito desde la API
  */
 async function cargarCarrito() {
+    // Guardar datos de viajeros antes de recargar
+    guardarDatosViajeros();
+    
     try {
         const response = await fetch('/api/carrito');
         if (!response.ok) {
@@ -58,6 +132,12 @@ async function cargarCarrito() {
         carritoItems = data.items || [];
         carritoTotal = data.total || 0;
         mostrarCarrito();
+        
+        // Restaurar datos de viajeros después de mostrar el carrito
+        setTimeout(() => {
+            restaurarDatosViajeros();
+        }, 100);
+        
         actualizarContadorCarrito();
     } catch (error) {
         console.error('Error en cargarCarrito:', error);
@@ -117,66 +197,90 @@ function mostrarCarrito() {
             // Convertir a string para evitar problemas con números decimales
             const itemUniqueId = String(item.timestamp || item.carrito_index || index);
             const maxCupos = item.disponibles || 1;
+            const dias = Math.ceil((new Date(item.fecha_fin) - new Date(item.fecha_inicio)) / (1000 * 60 * 60 * 24));
+            const destinos = item.destinos && item.destinos.length > 0 ? item.destinos.map(d => d.nombre).join(', ') : 'Sin destinos';
+            
             html += `
-                <div class="card mb-3 border-primary" data-paquete-id="${paqueteId}" data-item-id="${itemUniqueId}">
-                    <div class="card-body">
-                        <div class="d-flex justify-content-between align-items-start">
-                            <div class="flex-grow-1">
-                                <h5 class="card-title text-dark fw-bold mb-2">
-                                    <i class="bi bi-box-seam me-2"></i>${item.nombre}
-                                </h5>
-                                <p class="text-muted small mb-1">
-                                    <i class="bi bi-calendar3 me-1"></i>${fechaInicio} - ${fechaFin}
-                                </p>
-                                ${item.disponibles !== undefined ? `
-                                    <div class="mb-2">
-                                        <span class="badge ${item.disponibles > 0 ? 'badge-cupos' : 'bg-danger'}">
-                                            ${item.disponibles > 0 ? `${item.disponibles} cupos disponibles` : 'Agotado'}
-                                        </span>
+                        <div class="card mb-3 border shadow-sm" data-paquete-id="${paqueteId}" data-item-id="${itemUniqueId}">
+                            <div class="card-body p-3 d-flex flex-column">
+                                <!-- Botón eliminar en la esquina superior derecha -->
+                                <div class="d-flex justify-content-between align-items-start mb-3">
+                                    <span class="badge ${item.disponibles > 0 ? 'badge-cupos' : 'bg-danger'}">${item.disponibles > 0 ? `${item.disponibles} cupos` : 'Agotado'}</span>
+                                    <button class="btn btn-link text-danger p-0" onclick="eliminarDelCarrito('${item.tipo}', ${item.id}, ${item.timestamp ? item.timestamp : (item.carrito_index !== undefined ? item.carrito_index : 'null')}, ${item.carrito_index !== undefined ? item.carrito_index : 'null'})" title="Eliminar">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
+                                
+                                <div class="row align-items-center">
+                            <!-- Información principal -->
+                            <div class="col-md-8">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div class="flex-grow-1">
+                                        <h6 class="card-title text-dark fw-bold mb-3 text-truncate" title="${item.nombre}">${item.nombre}</h6>
+                                        <div class="d-flex align-items-center gap-3 flex-wrap small text-muted mb-3">
+                                            <span class="text-truncate" style="max-width: 200px;" title="${item.origen || 'N/A'}"><i class="bi bi-geo-alt text-primary me-1"></i>${item.origen || 'N/A'}</span>
+                                            <i class="bi bi-arrow-right text-primary"></i>
+                                            <span class="text-truncate" style="max-width: 200px;" title="${destinos}"><i class="bi bi-geo-alt-fill text-danger me-1"></i>${destinos}</span>
+                                            <span class="text-muted">•</span>
+                                            <span><i class="bi bi-clock text-primary me-1"></i>${dias} días</span>
+                                            <span class="text-muted">•</span>
+                                            <span><i class="bi bi-calendar3 text-primary me-1"></i>${fechaInicio} - ${fechaFin}</span>
+                                        </div>
+                                        ${item.destinos && item.destinos.length > 0 && item.destinos.some(d => {
+                                            const actividadesArray = Array.isArray(d.actividades) ? d.actividades : (d.actividades ? d.actividades.split(',').map(a => a.trim()) : []);
+                                            return actividadesArray.length > 0;
+                                        }) ? `
+                                        <div class="mt-3 flex-grow-1">
+                                            <small class="text-muted">
+                                                <i class="bi bi-list-check text-warning me-1"></i>Actividades: 
+                                            </small>
+                                            <div class="mt-1" style="max-height: 80px; overflow-y: auto;">
+                                                ${item.destinos.flatMap(destino => {
+                                                    const actividadesArray = Array.isArray(destino.actividades) ? destino.actividades : (destino.actividades ? destino.actividades.split(',').map(a => a.trim()) : []);
+                                                    return actividadesArray;
+                                                }).slice(0, 5).map(act => `<span class="badge bg-purple-pastel text-purple-dark small me-1 mb-1">${act}</span>`).join('')}
+                                                ${item.destinos.flatMap(destino => {
+                                                    const actividadesArray = Array.isArray(destino.actividades) ? destino.actividades : (destino.actividades ? destino.actividades.split(',').map(a => a.trim()) : []);
+                                                    return actividadesArray;
+                                                }).length > 5 ? `<span class="badge bg-secondary small">+${item.destinos.flatMap(destino => {
+                                                    const actividadesArray = Array.isArray(destino.actividades) ? destino.actividades : (destino.actividades ? destino.actividades.split(',').map(a => a.trim()) : []);
+                                                    return actividadesArray;
+                                                }).length - 5}</span>` : ''}
+                                            </div>
+                                        </div>
+                                        ` : ''}
                                     </div>
-                                ` : ''}
-                                <div class="mt-2">
-                                    <small class="text-muted">
-                                        Precio unitario: <strong>${formatCLP(precioUnitario)}</strong>
-                                    </small>
                                 </div>
                             </div>
-                            <div class="text-end ms-3">
-                                <div class="mb-2">
-                                    <small class="text-muted d-block">Subtotal</small>
-                                    <h4 class="text-primary mb-0">${formatCLP(subtotal)}</h4>
+                            
+                            <!-- Precio -->
+                            <div class="col-md-4 text-md-end">
+                                <div>
+                                    <small class="text-muted d-block mb-1">Precio Unitario</small>
+                                    <h5 class="text-success fw-bold mb-0">${formatCLP(precioUnitario)}</h5>
                                 </div>
-                                <button class="btn btn-sm btn-outline-danger" onclick="eliminarDelCarrito('${item.tipo}', ${item.id}, ${item.timestamp ? item.timestamp : (item.carrito_index !== undefined ? item.carrito_index : 'null')}, ${item.carrito_index !== undefined ? item.carrito_index : 'null'})">
-                                    <i class="bi bi-trash me-1"></i>Eliminar
-                                </button>
                             </div>
                         </div>
-                        
+                                
                         ${item.destinos && item.destinos.length > 0 ? `
-                            <div class="mb-3">
-                                ${item.destinos.map(destino => `
-                                    <div class="mb-2 p-2 rounded border-start border-primary border-3 bg-light">
-                                        <h6 class="text-dark fw-bold mb-1">
-                                            <i class="bi bi-geo-alt-fill text-danger me-1"></i>${destino.nombre}
-                                        </h6>
-                                        ${destino.descripcion ? `
-                                            <p class="small text-muted mb-2 text-center">${destino.descripcion}</p>
-                                        ` : ''}
-                                        ${destino.actividades && destino.actividades.length > 0 ? `
-                                            <div class="d-flex flex-wrap gap-1 justify-content-center">
-                                                ${destino.actividades.map(actividad => `
-                                                    <span class="badge bg-purple-pastel text-purple-dark fw-bold">${actividad.trim()}</span>
-                                                `).join('')}
+                            <div class="mb-2 flex-grow-1" style="max-height: 100px; overflow-y: auto;">
+                                ${item.destinos.map(destino => {
+                                    const descripcion = destino.descripcion || '';
+                                    return `
+                                        ${descripcion ? `
+                                            <div class="mb-2 text-start">
+                                                <p class="text-muted mb-0 lh-sm small" style="display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;">${descripcion}</p>
                                             </div>
                                         ` : ''}
-                                    </div>
-                                `).join('')}
+                                    `;
+                                }).join('')}
                             </div>
                         ` : ''}
                         
                         <hr class="my-3">
                         
-                        <div class="datos-viajero-paquete" data-paquete-id="${paqueteId}" data-item-id="${itemUniqueId}">
+                        ${usuarioRol === 'cliente' ? `
+                        <div class="datos-viajero-paquete mt-auto" data-paquete-id="${paqueteId}" data-item-id="${itemUniqueId}">
                             <div class="mb-3">
                                 <label class="form-label fw-bold">Número de Pasajeros <span class="text-danger">*</span></label>
                                 <input type="number" class="form-control numero-pasajeros-paquete" 
@@ -201,6 +305,12 @@ function mostrarCarrito() {
                                 <!-- Se llenará dinámicamente con formularios para cada viajero -->
                             </div>
                         </div>
+                        ` : `
+                        <div class="alert alert-info mt-auto">
+                            <i class="bi bi-info-circle me-2"></i>
+                            <strong>Nota:</strong> Iniciar sesión para ingresar datos del viajero para realizar reservas.
+                        </div>
+                        `}
                     </div>
                 </div>
             `;
@@ -227,7 +337,7 @@ function mostrarCarrito() {
     
     html += `
         <div class="col-lg-4">
-            <div class="card sticky-top" style="top: 20px;">
+            <div class="card sticky-top" style="top: 100px; z-index: 1020;">
                 <div class="card-body">
                     <h5 class="card-title mb-4">Resumen de Compra</h5>
                     
@@ -264,10 +374,17 @@ function mostrarCarrito() {
                         <h5 class="mb-0 fw-bold">Total:</h5>
                         <h4 class="text-primary mb-0 fw-bold" id="carrito-total-final">${formatCLP(subtotalCalculado)}</h4>
                     </div>
+                    ${usuarioRol === 'cliente' ? `
                     <button class="btn btn-primary w-100 mb-2" onclick="procederReserva()">
                         <i class="bi bi-check-circle-fill me-2"></i>Proceder a Reservar
                     </button>
-                    <button class="btn btn-outline-secondary w-100" onclick="limpiarCarrito()">
+                    ` : `
+                    <div class="alert alert-warning mb-2">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        Iniciar sesión para realizar reservas.
+                    </div>
+                    `}
+                    <button class="btn btn-outline-secondary limpiar-carrito w-100" onclick="limpiarCarrito()">
                         <i class="bi bi-trash me-2"></i>Limpiar Carrito
                     </button>
                 </div>
@@ -277,59 +394,95 @@ function mostrarCarrito() {
     
     container.innerHTML = html;
     
-    // Agregar listeners a los inputs de número de pasajeros
-    document.querySelectorAll('.numero-pasajeros-paquete').forEach(input => {
-        input.addEventListener('input', function() {
-            const itemId = this.getAttribute('data-item-id');
-            const paqueteId = this.getAttribute('data-paquete-id');
-            const numPasajeros = parseInt(this.value) || 0;
-            const maxCupos = parseInt(this.getAttribute('max')) || 1;
-            const precioUnitario = parseFloat(this.getAttribute('data-precio')) || 0;
-            const errorDiv = document.querySelector(`.error-cupos-paquete[data-item-id="${itemId}"]`);
+    // Agregar listeners a los inputs de número de pasajeros (solo si el usuario es cliente)
+    if (usuarioRol === 'cliente') {
+        document.querySelectorAll('.numero-pasajeros-paquete').forEach(input => {
+            input.addEventListener('input', function() {
+                const itemId = this.getAttribute('data-item-id');
+                const paqueteId = this.getAttribute('data-paquete-id');
+                const numPasajeros = parseInt(this.value) || 0;
+                const maxCupos = parseInt(this.getAttribute('max')) || 1;
+                const precioUnitario = parseFloat(this.getAttribute('data-precio')) || 0;
+                const errorDiv = document.querySelector(`.error-cupos-paquete[data-item-id="${itemId}"]`);
+                const viajerosContainer = document.querySelector(`.viajeros-container-paquete[data-item-id="${itemId}"]`);
+                const totalDiv = document.querySelector(`.total-paquete[data-item-id="${itemId}"]`);
+                const cantidadDisplay = document.querySelector(`.cantidad-pasajeros-display[data-item-id="${itemId}"]`);
+                
+                if (!viajerosContainer) {
+                    console.error('No se encontró el contenedor de viajeros para itemId:', itemId);
+                    return;
+                }
+                
+                if (numPasajeros > maxCupos) {
+                    if (errorDiv) {
+                        errorDiv.textContent = `Máximo ${maxCupos} pasajero(s) disponible(s)`;
+                        errorDiv.style.display = 'block';
+                    }
+                    this.setCustomValidity(`Máximo ${maxCupos} pasajero(s)`);
+                    viajerosContainer.innerHTML = '';
+                } else {
+                    if (errorDiv) {
+                        errorDiv.style.display = 'none';
+                    }
+                    this.setCustomValidity('');
+                    generarFormulariosViajerosPaquete(paqueteId, itemId, numPasajeros, viajerosContainer);
+                    
+                    const total = precioUnitario * numPasajeros;
+                    if (totalDiv) {
+                        totalDiv.textContent = formatCLP(total);
+                    }
+                    if (cantidadDisplay) {
+                        cantidadDisplay.textContent = numPasajeros;
+                    }
+                    
+                    actualizarResumenCompra();
+                }
+            });
+            
+            // Inicializar formularios de viajeros al cargar
+            const itemId = input.getAttribute('data-item-id');
+            const paqueteId = input.getAttribute('data-paquete-id');
+            const numPasajeros = parseInt(input.value) || 1;
             const viajerosContainer = document.querySelector(`.viajeros-container-paquete[data-item-id="${itemId}"]`);
-            const totalDiv = document.querySelector(`.total-paquete[data-item-id="${itemId}"]`);
-            const cantidadDisplay = document.querySelector(`.cantidad-pasajeros-display[data-item-id="${itemId}"]`);
-            
-            if (!viajerosContainer) {
-                console.error('No se encontró el contenedor de viajeros para itemId:', itemId);
-                return;
-            }
-            
-            if (numPasajeros > maxCupos) {
-                if (errorDiv) {
-                    errorDiv.textContent = `Máximo ${maxCupos} pasajero(s) disponible(s)`;
-                    errorDiv.style.display = 'block';
-                }
-                this.setCustomValidity(`Máximo ${maxCupos} pasajero(s)`);
-                viajerosContainer.innerHTML = '';
-            } else {
-                if (errorDiv) {
-                    errorDiv.style.display = 'none';
-                }
-                this.setCustomValidity('');
+            if (viajerosContainer && itemId && paqueteId) {
                 generarFormulariosViajerosPaquete(paqueteId, itemId, numPasajeros, viajerosContainer);
-                
-                const total = precioUnitario * numPasajeros;
-                if (totalDiv) {
-                    totalDiv.textContent = formatCLP(total);
-                }
-                if (cantidadDisplay) {
-                    cantidadDisplay.textContent = numPasajeros;
-                }
-                
-                actualizarResumenCompra();
+                // Restaurar datos guardados para este itemId después de generar los formularios
+                setTimeout(() => {
+                    if (datosViajerosGuardados[itemId]) {
+                        const datos = datosViajerosGuardados[itemId];
+                        Object.keys(datos.viajeros || {}).forEach(viajeroNum => {
+                            const viajeroData = datos.viajeros[viajeroNum];
+                            if (viajeroData.nombre) {
+                                const nombreInput = document.querySelector(`.viajero-nombre[data-item-id="${itemId}"][data-viajero="${viajeroNum}"]`);
+                                if (nombreInput) nombreInput.value = viajeroData.nombre;
+                            }
+                            if (viajeroData.rut) {
+                                const rutInput = document.querySelector(`.viajero-rut[data-item-id="${itemId}"][data-viajero="${viajeroNum}"]`);
+                                if (rutInput) rutInput.value = viajeroData.rut;
+                            }
+                            if (viajeroData.email) {
+                                const emailInput = document.querySelector(`.viajero-email[data-item-id="${itemId}"][data-viajero="${viajeroNum}"]`);
+                                if (emailInput) emailInput.value = viajeroData.email;
+                            }
+                            if (viajeroData.telefono) {
+                                const telefonoInput = document.querySelector(`.viajero-telefono[data-item-id="${itemId}"][data-viajero="${viajeroNum}"]`);
+                                if (telefonoInput) telefonoInput.value = viajeroData.telefono;
+                            }
+                            if (viajeroData.fecha) {
+                                const fechaInput = document.querySelector(`.viajero-fecha[data-item-id="${itemId}"][data-viajero="${viajeroNum}"]`);
+                                if (fechaInput) {
+                                    fechaInput.value = viajeroData.fecha;
+                                    if (fechaInput._flatpickr) {
+                                        fechaInput._flatpickr.setDate(viajeroData.fecha, false);
+                                    }
+                                }
+                            }
+                        });
+                    }
+                }, 50);
             }
         });
-        
-        // Inicializar formularios de viajeros al cargar
-        const itemId = input.getAttribute('data-item-id');
-        const paqueteId = input.getAttribute('data-paquete-id');
-        const numPasajeros = parseInt(input.value) || 1;
-        const viajerosContainer = document.querySelector(`.viajeros-container-paquete[data-item-id="${itemId}"]`);
-        if (viajerosContainer && itemId && paqueteId) {
-            generarFormulariosViajerosPaquete(paqueteId, itemId, numPasajeros, viajerosContainer);
-        }
-    });
+    }
 }
 
 /**
@@ -371,6 +524,12 @@ function actualizarResumenCompra() {
  * Generar formularios de viajeros para un paquete
  */
 function generarFormulariosViajerosPaquete(paqueteId, itemId, numViajeros, container) {
+    // Solo permitir si el usuario es cliente
+    if (usuarioRol !== 'cliente') {
+        container.innerHTML = '<div class="alert alert-warning"><i class="bi bi-exclamation-triangle me-2"></i>Solo los usuarios con rol de cliente pueden ingresar datos del viajero.</div>';
+        return;
+    }
+    
     if (!container) {
         console.error('Container no encontrado para generar formularios de viajeros', {
             paqueteId,
@@ -390,7 +549,11 @@ function generarFormulariosViajerosPaquete(paqueteId, itemId, numViajeros, conta
     container.innerHTML = '<h6 class="fw-bold mb-3 text-secondary"><i class="bi bi-people-fill me-2"></i>Datos del Viajero</h6>';
     
     for (let i = 1; i <= numViajeros; i++) {
-        const tieneUsuarioData = usuarioData !== null && usuarioData !== undefined;
+        // Verificar si hay datos de usuario disponibles
+        // El botón debe aparecer si el usuario está logueado (tieneUsuario) y tiene al menos nombre y RUT
+        const tieneUsuarioData = tieneUsuario && usuarioData !== null && usuarioData !== undefined && 
+                                  typeof usuarioData === 'object' && 
+                                  (usuarioData.nombre_completo || usuarioData.rut || usuarioData.email);
         const botonUsarDatos = tieneUsuarioData ? `
             <button type="button" class="btn btn-sm btn-light" onclick="usarDatosUsuario(${paqueteId}, '${itemId}', ${i})" title="Rellenar con mis datos personales">
                 <i class="bi bi-person-check me-1"></i>Usar mis datos
@@ -808,6 +971,17 @@ async function limpiarCarrito() {
  * Proceder con la reserva
  */
 function procederReserva() {
+    // Verificar que el usuario sea cliente
+    if (usuarioRol !== 'cliente') {
+        Swal.fire({
+            title: 'Acceso Restringido',
+            text: 'Solo los usuarios con rol de cliente pueden realizar reservas',
+            icon: 'warning',
+            confirmButtonText: 'Entendido'
+        });
+        return;
+    }
+    
     if (!tieneUsuario) {
         Swal.fire({
             title: 'Iniciar Sesión Requerido',
@@ -832,17 +1006,16 @@ function procederReserva() {
     }
     
     const datosPorPaquete = [];
-    let hayErrores = false;
     
     // Iterar sobre cada item del carrito individualmente (cada uno tiene su propio itemId único)
-    paquetesEnCarrito.forEach((item, index) => {
+    for (const item of paquetesEnCarrito) {
         const paqueteId = item.id;
+        const index = paquetesEnCarrito.indexOf(item);
         const itemId = String(item.timestamp || item.carrito_index || index);
         
         const numeroPasajerosInput = document.querySelector(`.numero-pasajeros-paquete[data-item-id="${itemId}"]`);
         if (!numeroPasajerosInput) {
             mostrarToast(`Error: No se encontró el campo de número de pasajeros para ${item.nombre}`, 'error', 'Error');
-            hayErrores = true;
             return;
         }
         
@@ -850,7 +1023,6 @@ function procederReserva() {
         
         if (item.disponibles < numeroPasajeros) {
             mostrarToast(`No hay suficientes cupos en ${item.nombre}. Disponibles: ${item.disponibles}, Solicitados: ${numeroPasajeros}`, 'error', 'Error');
-            hayErrores = true;
             return;
         }
         
@@ -869,48 +1041,47 @@ function procederReserva() {
             const email = emailInput?.value?.trim() || '';
             
             // Validar nombre
-            if (!nombre || !validarNombre(nombre)) {
-                mostrarToast(`El nombre del viajero ${i} no es válido. Solo se permiten letras y espacios.`, 'error', 'Error');
+            if (!nombre) {
+                mostrarToast('El nombre es requerido.', 'error', 'Error');
                 if (nombreInput) nombreInput.classList.add('is-invalid');
-                hayErrores = true;
+                return;
+            }
+            if (!validarNombre(nombre)) {
+                mostrarToast('El nombre debe tener al menos 2 caracteres y solo puede contener letras, espacios, guiones y apóstrofes.', 'error', 'Error');
+                if (nombreInput) nombreInput.classList.add('is-invalid');
                 return;
             }
             
             // Validar RUT
             if (!rut || !validarRutChileno(rut)) {
-                mostrarToast(`El RUT del viajero ${i} no es válido. Verifica el formato y el dígito verificador.`, 'error', 'Error');
+                mostrarToast('El RUT no es válido. Verifica el formato y el dígito verificador.', 'error', 'Error');
                 if (rutInput) rutInput.classList.add('is-invalid');
-                hayErrores = true;
                 return;
             }
             
             // Validar email si está presente
             if (email && !validarEmail(email)) {
-                mostrarToast(`El email del viajero ${i} no tiene un formato válido.`, 'error', 'Error');
+                mostrarToast('El email no tiene un formato válido.', 'error', 'Error');
                 if (emailInput) emailInput.classList.add('is-invalid');
-                hayErrores = true;
                 return;
             }
             
             // Validar teléfono (obligatorio)
             if (!telefono) {
-                mostrarToast(`El teléfono del viajero ${i} es requerido.`, 'error', 'Error');
+                mostrarToast('El teléfono es requerido.', 'error', 'Error');
                 if (telefonoInput) telefonoInput.classList.add('is-invalid');
-                hayErrores = true;
                 return;
             }
             if (!validarTelefono(telefono)) {
-                mostrarToast(`El teléfono del viajero ${i} no tiene un formato válido.`, 'error', 'Error');
+                mostrarToast('El teléfono no tiene un formato válido.', 'error', 'Error');
                 if (telefonoInput) telefonoInput.classList.add('is-invalid');
-                hayErrores = true;
                 return;
             }
             
             // Validar fecha si está presente
             if (fecha && !validarFechaNacimiento(fecha)) {
-                mostrarToast(`La fecha de nacimiento del viajero ${i} no es válida o es futura.`, 'error', 'Error');
+                mostrarToast('La fecha de nacimiento no es válida o es futura.', 'error', 'Error');
                 if (fechaInput) fechaInput.classList.add('is-invalid');
-                hayErrores = true;
                 return;
             }
             
@@ -929,8 +1100,7 @@ function procederReserva() {
         }
         
         if (viajeros.length < numeroPasajeros) {
-            mostrarToast(`Debes completar los datos de los ${numeroPasajeros} viajero${numeroPasajeros > 1 ? 's' : ''} para ${item.nombre}`, 'error', 'Error');
-            hayErrores = true;
+            mostrarToast('Complete los datos del viajero', 'error', 'Error');
             return;
         }
         
@@ -940,10 +1110,6 @@ function procederReserva() {
             numero_pasajeros: numeroPasajeros,
             viajeros: viajeros
         });
-    });
-    
-    if (hayErrores) {
-        return;
     }
     
     // Obtener teléfono del viajero titular (primer viajero del primer paquete)
@@ -1002,7 +1168,7 @@ async function crearReservas(datosPorPaquete, telefonoContacto, comentarios) {
             icon: 'success',
             confirmButtonText: 'Ver Mis Reservas'
         }).then(() => {
-            window.location.href = '/mis-reservas';
+            window.location.href = '/auth/perfil/detalle';
         });
     } catch (error) {
         Swal.fire('Error', error.message || 'Error al crear las reservas', 'error');

@@ -14,15 +14,15 @@ def listar():
         
         if destacados:
             # Retornar solo paquetes destacados con criterios automáticos
+            # Mostrar paquetes con cupos disponibles, priorizando fechas futuras
             hoy = date.today()
             paquetes = Paquete.query.options(
                 joinedload(Paquete.destinos).joinedload(PaqueteDestino.destino)
             ).filter(
-                Paquete.disponibles > 0,  # Con cupos disponibles
-                Paquete.fecha_inicio >= hoy  # Fechas futuras o de hoy
+                Paquete.disponibles > 0  # Con cupos disponibles
             ).order_by(
-                Paquete.disponibles.desc(),  # Más cupos primero
-                Paquete.fecha_inicio.asc()   # Fechas más cercanas primero
+                Paquete.fecha_inicio.desc(),  # Fechas más recientes primero (futuras o pasadas)
+                Paquete.disponibles.desc()    # Más cupos primero
             ).limit(6).all()  # Máximo 6 paquetes
         else:
             # Retornar todos los paquetes

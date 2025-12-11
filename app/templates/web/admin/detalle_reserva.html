@@ -80,8 +80,8 @@
                         </div>
                         <div class="col-md-6 mb-3">
                             <strong>Cupos Disponibles:</strong><br>
-                            <span class="badge {% if reserva.paquete.disponibles > 0 %}bg-success{% else %}bg-danger{% endif %}">
-                                {{ reserva.paquete.disponibles }} disponibles
+                            <span class="badge {% if reserva.paquete.disponibles > 0 %}badge-cupos{% else %}bg-danger{% endif %}">
+                                {{ reserva.paquete.disponibles }} cupos
                             </span>
                         </div>
                     </div>
@@ -200,7 +200,70 @@
                 {% endif %}
             </div>
         </div>
+        
+        <!-- Acciones del Administrador -->
+        {% if reserva.estado == 'confirmada' %}
+        <div class="card shadow-sm mt-3">
+            <div class="card-body">
+                <h6 class="card-title">Acciones</h6>
+                <button type="button" class="btn btn-danger w-100" onclick="cancelarReservaAdmin({{ reserva.id }})">
+                    <i class="bi bi-x-circle"></i> Cancelar Reserva
+                </button>
+            </div>
+        </div>
+        {% endif %}
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+async function cancelarReservaAdmin(reservaId) {
+    const result = await Swal.fire({
+        title: '¿Cancelar reserva?',
+        text: '¿Estás seguro de que deseas cancelar esta reserva? Los cupos serán devueltos al paquete.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#dc3545',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Sí, cancelar',
+        cancelButtonText: 'No, mantener'
+    });
+    
+    if (!result.isConfirmed) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/reservas/${reservaId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ estado: 'cancelada' })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            if (typeof mostrarToast === 'function') {
+                mostrarToast('Reserva cancelada exitosamente. Los cupos han sido devueltos al paquete.', 'success', 'Éxito');
+            } else {
+                Swal.fire('Reserva cancelada', 'La reserva ha sido cancelada exitosamente. Los cupos han sido devueltos al paquete.', 'success');
+            }
+            
+            // Recargar la página después de un breve delay para mostrar el estado actualizado
+            setTimeout(() => {
+                window.location.reload();
+            }, 1500);
+        } else {
+            const errorMsg = data.error || 'Error al cancelar la reserva';
+            console.error('Error al cancelar reserva:', errorMsg);
+            Swal.fire('Error', errorMsg, 'error');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        Swal.fire('Error', 'Error de conexión al cancelar la reserva', 'error');
+    }
+}
+</script>
 {% endblock %}
 

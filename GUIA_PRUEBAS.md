@@ -174,8 +174,8 @@ source venv/bin/activate
 
 ## 📝 Notas
 
-- La aplicación usa SQLite por defecto en desarrollo
-- Los datos se guardan en `turismo.db`
+- La aplicación usa MySQL por defecto (configurado en `.env`)
+- SQLite está disponible como fallback si no hay `.env` configurado
 - El modo debug está activado (muestra errores detallados)
 - El puerto por defecto es 5001
 

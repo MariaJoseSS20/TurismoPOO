@@ -38,7 +38,7 @@
                 <tbody id="destinos-tbody">
                     {% if destinos %}
                     {% for destino in destinos %}
-                    <tr>
+                    <tr data-destino-id="{{ destino.id }}">
                         <td class="text-center"><strong>{{ destino.id }}</strong></td>
                         <td>
                             <strong>{{ destino.nombre }}</strong>
@@ -58,12 +58,9 @@
                                 <a href="{{ url_for('admin.editar_destino', id=destino.id) }}" class="btn btn-sm btn-outline-warning">
                                     <i class="bi bi-pencil"></i> Editar
                                 </a>
-                                <form method="POST" action="{{ url_for('admin.eliminar_destino', id=destino.id) }}" 
-                                      onsubmit="return confirm('¿Estás seguro de eliminar el destino {{ destino.nombre }}?');" style="display: inline;">
-                                    <button type="submit" class="btn btn-sm btn-outline-danger">
-                                        <i class="bi bi-trash"></i> Eliminar
-                                    </button>
-                                </form>
+                                <button type="button" class="btn btn-sm btn-outline-danger" onclick="eliminarDestinoDesdeLista({{ destino.id }}, '{{ destino.nombre|replace("'", "\\'") }}')">
+                                    <i class="bi bi-trash"></i> Eliminar
+                                </button>
                             </div>
                         </td>
                     </tr>
@@ -99,6 +96,9 @@
                     </td>
                 </tr>
             `;
+            if (contador) {
+                contador.textContent = '0 destinos';
+            }
             return;
         }
         
@@ -113,7 +113,7 @@
             }).format(destino.costo_base);
             
             html += `
-                <tr>
+                <tr data-destino-id="${destino.id}">
                     <td class="text-center"><strong>${destino.id}</strong></td>
                     <td>
                         <strong>${destino.nombre}</strong>
@@ -131,12 +131,9 @@
                             <a href="/admin/destinos/editar/${destino.id}" class="btn btn-sm btn-outline-warning">
                                 <i class="bi bi-pencil"></i> Editar
                             </a>
-                            <form method="POST" action="/admin/destinos/eliminar/${destino.id}" 
-                                  onsubmit="return confirm('¿Estás seguro de eliminar el destino ${destino.nombre.replace(/'/g, "\\'")}?');" style="display: inline;">
-                                <button type="submit" class="btn btn-sm btn-outline-danger">
-                                    <i class="bi bi-trash"></i> Eliminar
-                                </button>
-                            </form>
+                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="eliminarDestinoDesdeLista(${destino.id}, '${destino.nombre.replace(/'/g, "\\'")}')">
+                                <i class="bi bi-trash"></i> Eliminar
+                            </button>
                         </div>
                     </td>
                 </tr>
@@ -193,6 +190,47 @@
         }
     });
 })();
+
+// Función wrapper para eliminar destino desde la lista
+async function eliminarDestinoDesdeLista(id, nombre) {
+    await eliminarDestino(id, nombre, {
+        onSuccess: function(data) {
+            // Eliminar la fila de la tabla inmediatamente
+            const fila = document.querySelector(`tr[data-destino-id="${id}"]`);
+            if (fila) {
+                fila.remove();
+            }
+            
+            // Actualizar contador
+            const contador = document.getElementById('contador-destinos');
+            if (contador) {
+                const tbody = document.getElementById('destinos-tbody');
+                const filas = tbody.querySelectorAll('tr[data-destino-id]');
+                const cantidad = filas.length;
+                contador.textContent = `${cantidad} destino${cantidad !== 1 ? 's' : ''}`;
+            }
+            
+            // Si no hay más destinos, mostrar mensaje
+            const tbody = document.getElementById('destinos-tbody');
+            if (tbody) {
+                const filas = tbody.querySelectorAll('tr[data-destino-id]');
+                if (filas.length === 0) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="5" class="text-center text-muted py-4">
+                                <i class="bi bi-search"></i> No se encontraron destinos con los criterios de búsqueda
+                            </td>
+                        </tr>
+                    `;
+                }
+            }
+        }
+    });
+}
 </script>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/admin.js') }}"></script>
 {% endblock %}
 

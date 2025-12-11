@@ -19,6 +19,9 @@
                         <label for="nombre" class="form-label fw-bold">Nombre <span class="text-danger">*</span></label>
                         <input type="text" class="form-control" id="nombre" name="nombre" 
                                value="{{ destino.nombre if destino else '' }}" required>
+                        <div class="invalid-feedback" id="nombre-error" style="display: none;">
+                            El nombre es obligatorio
+                        </div>
                     </div>
                     
                     <div class="mb-3">
@@ -28,23 +31,32 @@
                     </div>
                     
                     <div class="mb-3">
-                        <label for="descripcion" class="form-label fw-bold">Descripción</label>
-                        <textarea class="form-control" id="descripcion" name="descripcion" rows="3">{{ destino.descripcion if destino else '' }}</textarea>
+                        <label for="descripcion" class="form-label fw-bold">Descripción <span class="text-danger">*</span></label>
+                        <textarea class="form-control" id="descripcion" name="descripcion" rows="3" required>{{ destino.descripcion if destino else '' }}</textarea>
+                        <div class="invalid-feedback" id="descripcion-error" style="display: none;">
+                            La descripción es obligatoria
+                        </div>
                     </div>
                     
                     <div class="mb-3">
-                        <label for="actividades" class="form-label fw-bold">Actividades</label>
+                        <label for="actividades" class="form-label fw-bold">Actividades <span class="text-danger">*</span></label>
                         <input type="text" class="form-control" id="actividades" name="actividades" 
                                value="{{ destino.actividades if destino else '' }}" 
-                               placeholder="Separadas por comas: Snorkel, Buceo, Relax">
+                               placeholder="Separadas por comas: Snorkel, Buceo, Relax" required>
                         <small class="text-muted">Separa las actividades con comas</small>
+                        <div class="invalid-feedback" id="actividades-error" style="display: none;">
+                            Las actividades son obligatorias
+                        </div>
                     </div>
                     
                     <div class="mb-3">
                         <label for="costo_base" class="form-label fw-bold">Costo Base <span class="text-danger">*</span></label>
                         <input type="number" class="form-control" id="costo_base" name="costo_base" 
-                               value="{{ destino.costo_base if destino else '' }}" 
-                               step="0.01" min="0" required>
+                               value="{% if destino %}{% if destino.costo_base % 1 == 0 %}{{ destino.costo_base|int }}{% else %}{{ destino.costo_base }}{% endif %}{% endif %}" 
+                               step="1" min="0" required>
+                        <div class="invalid-feedback" id="costo_base-error" style="display: none;">
+                            El costo base es obligatorio y debe ser mayor o igual a 0
+                        </div>
                     </div>
                     
                     <div class="d-flex gap-2">
@@ -61,5 +73,237 @@
     </div>
 </div>
 
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Formatear costo base al cargar (quitar decimales innecesarios)
+    const costoBaseInput = document.getElementById('costo_base');
+    if (costoBaseInput && costoBaseInput.value) {
+        const value = parseFloat(costoBaseInput.value);
+        if (!isNaN(value)) {
+            // Si es un número entero, quitar decimales (.00)
+            if (value % 1 === 0) {
+                // Convertir a entero y eliminar cualquier decimal
+                costoBaseInput.value = parseInt(value).toString();
+            } else {
+                // Si tiene decimales, mantener solo 2 decimales máximo
+                costoBaseInput.value = parseFloat(value.toFixed(2)).toString();
+            }
+        }
+    }
+    
+    // Validar nombre
+    const nombreInput = document.getElementById('nombre');
+    const nombreError = document.getElementById('nombre-error');
+    if (nombreInput) {
+        nombreInput.addEventListener('blur', function() {
+            if (!this.value.trim()) {
+                this.classList.add('is-invalid');
+                this.classList.remove('is-valid');
+                if (nombreError) nombreError.style.display = 'block';
+            } else {
+                this.classList.remove('is-invalid');
+                this.classList.add('is-valid');
+                if (nombreError) nombreError.style.display = 'none';
+            }
+        });
+        
+        nombreInput.addEventListener('input', function() {
+            if (this.value.trim()) {
+                this.classList.remove('is-invalid');
+                this.classList.add('is-valid');
+                if (nombreError) nombreError.style.display = 'none';
+            }
+        });
+    }
+    
+    // Validar descripción
+    const descripcionInput = document.getElementById('descripcion');
+    const descripcionError = document.getElementById('descripcion-error');
+    if (descripcionInput) {
+        descripcionInput.addEventListener('blur', function() {
+            if (!this.value.trim()) {
+                this.classList.add('is-invalid');
+                this.classList.remove('is-valid');
+                if (descripcionError) descripcionError.style.display = 'block';
+            } else {
+                this.classList.remove('is-invalid');
+                this.classList.add('is-valid');
+                if (descripcionError) descripcionError.style.display = 'none';
+            }
+        });
+        
+        descripcionInput.addEventListener('input', function() {
+            if (this.value.trim()) {
+                this.classList.remove('is-invalid');
+                this.classList.add('is-valid');
+                if (descripcionError) descripcionError.style.display = 'none';
+            }
+        });
+    }
+    
+    // Validar actividades
+    const actividadesInput = document.getElementById('actividades');
+    const actividadesError = document.getElementById('actividades-error');
+    if (actividadesInput) {
+        actividadesInput.addEventListener('blur', function() {
+            if (!this.value.trim()) {
+                this.classList.add('is-invalid');
+                this.classList.remove('is-valid');
+                if (actividadesError) actividadesError.style.display = 'block';
+            } else {
+                this.classList.remove('is-invalid');
+                this.classList.add('is-valid');
+                if (actividadesError) actividadesError.style.display = 'none';
+            }
+        });
+        
+        actividadesInput.addEventListener('input', function() {
+            if (this.value.trim()) {
+                this.classList.remove('is-invalid');
+                this.classList.add('is-valid');
+                if (actividadesError) actividadesError.style.display = 'none';
+            }
+        });
+    }
+    
+    // Validar costo base
+    const costoBaseInput = document.getElementById('costo_base');
+    const costoBaseError = document.getElementById('costo_base-error');
+    if (costoBaseInput) {
+        costoBaseInput.addEventListener('blur', function() {
+            const value = parseFloat(this.value);
+            if (!this.value || isNaN(value) || value < 0) {
+                this.classList.add('is-invalid');
+                this.classList.remove('is-valid');
+                if (costoBaseError) costoBaseError.style.display = 'block';
+            } else {
+                this.classList.remove('is-invalid');
+                this.classList.add('is-valid');
+                if (costoBaseError) costoBaseError.style.display = 'none';
+            }
+        });
+        
+        costoBaseInput.addEventListener('input', function() {
+            const value = parseFloat(this.value);
+            if (this.value && !isNaN(value) && value >= 0) {
+                this.classList.remove('is-invalid');
+                this.classList.add('is-valid');
+                if (costoBaseError) costoBaseError.style.display = 'none';
+            }
+        });
+    }
+    
+    // Validar antes de enviar el formulario
+    const form = document.querySelector('form');
+    if (form) {
+        // Remover el atributo novalidate si existe, o agregarlo para deshabilitar validación HTML5
+        form.setAttribute('novalidate', 'novalidate');
+        
+        form.addEventListener('submit', function(e) {
+            // Siempre prevenir el envío por defecto para validar con JavaScript
+            e.preventDefault();
+            e.stopPropagation();
+            
+            let hasErrors = false;
+            
+            // Validar nombre
+            if (!nombreInput || !nombreInput.value.trim()) {
+                if (nombreInput) {
+                    nombreInput.classList.add('is-invalid');
+                    nombreInput.classList.remove('is-valid');
+                }
+                if (nombreError) nombreError.style.display = 'block';
+                hasErrors = true;
+            } else {
+                if (nombreInput) {
+                    nombreInput.classList.remove('is-invalid');
+                    nombreInput.classList.add('is-valid');
+                }
+                if (nombreError) nombreError.style.display = 'none';
+            }
+            
+            // Validar descripción
+            if (!descripcionInput || !descripcionInput.value.trim()) {
+                if (descripcionInput) {
+                    descripcionInput.classList.add('is-invalid');
+                    descripcionInput.classList.remove('is-valid');
+                }
+                if (descripcionError) descripcionError.style.display = 'block';
+                hasErrors = true;
+            } else {
+                if (descripcionInput) {
+                    descripcionInput.classList.remove('is-invalid');
+                    descripcionInput.classList.add('is-valid');
+                }
+                if (descripcionError) descripcionError.style.display = 'none';
+            }
+            
+            // Validar actividades
+            if (!actividadesInput || !actividadesInput.value.trim()) {
+                if (actividadesInput) {
+                    actividadesInput.classList.add('is-invalid');
+                    actividadesInput.classList.remove('is-valid');
+                }
+                if (actividadesError) actividadesError.style.display = 'block';
+                hasErrors = true;
+            } else {
+                if (actividadesInput) {
+                    actividadesInput.classList.remove('is-invalid');
+                    actividadesInput.classList.add('is-valid');
+                }
+                if (actividadesError) actividadesError.style.display = 'none';
+            }
+            
+            // Validar costo base
+            if (!costoBaseInput || !costoBaseInput.value) {
+                if (costoBaseInput) {
+                    costoBaseInput.classList.add('is-invalid');
+                    costoBaseInput.classList.remove('is-valid');
+                }
+                if (costoBaseError) {
+                    costoBaseError.textContent = 'El costo base es obligatorio';
+                    costoBaseError.style.display = 'block';
+                }
+                hasErrors = true;
+            } else {
+                const costoValue = parseFloat(costoBaseInput.value);
+                if (isNaN(costoValue) || costoValue < 0) {
+                    if (costoBaseInput) {
+                        costoBaseInput.classList.add('is-invalid');
+                        costoBaseInput.classList.remove('is-valid');
+                    }
+                    if (costoBaseError) {
+                        costoBaseError.textContent = 'El costo base debe ser un número mayor o igual a 0';
+                        costoBaseError.style.display = 'block';
+                    }
+                    hasErrors = true;
+                } else {
+                    if (costoBaseInput) {
+                        costoBaseInput.classList.remove('is-invalid');
+                        costoBaseInput.classList.add('is-valid');
+                    }
+                    if (costoBaseError) costoBaseError.style.display = 'none';
+                }
+            }
+            
+            if (hasErrors) {
+                // Scroll al primer error
+                const firstError = form.querySelector('.is-invalid');
+                if (firstError) {
+                    firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    setTimeout(() => firstError.focus(), 300);
+                }
+                return false;
+            } else {
+                // Si no hay errores, enviar el formulario
+                form.submit();
+            }
+        });
+    }
+});
+</script>
 {% endblock %}
 

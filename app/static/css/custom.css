@@ -65,10 +65,10 @@
     color: white;
 }
 
-/* Badge de cupos con color azul pastel */
+/* Badge de cupos con color verde consistente */
 .badge-cupos {
-    background-color: #a8d5e2 !important;
-    color: #0066CC !important;
+    background-color: #28a745 !important;
+    color: white !important;
     font-weight: 600;
 }
 

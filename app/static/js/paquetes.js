@@ -128,7 +128,7 @@ function filtrarPaquetes() {
         const fechaInicio = new Date(paquete.fecha_inicio).toLocaleDateString('es-ES');
         const fechaFin = new Date(paquete.fecha_fin).toLocaleDateString('es-ES');
         const dias = Math.ceil((new Date(paquete.fecha_fin) - new Date(paquete.fecha_inicio)) / (1000 * 60 * 60 * 24));
-        const destinos = paquete.destinos && paquete.destinos.length > 0 ? paquete.destinos.map(d => d.nombre).join(', ') : 'Sin destinos';
+        const destinos = paquete.destinos && paquete.destinos.length > 0 ? paquete.destinos.map(d => d.nombre).join(', ') : 'Sin destino';
         
         cardsHTML += `
             <div class="col-md-6 col-lg-4 col-xl-3 mb-4">
@@ -153,7 +153,7 @@ function filtrarPaquetes() {
                                 <div class="d-flex align-items-center flex-fill">
                                     <i class="bi bi-geo-alt-fill text-danger me-2"></i>
                                     <div>
-                                        <small class="text-muted d-block">Destinos</small>
+                                        <small class="text-muted d-block">Destino</small>
                                         <strong>${destinos}</strong>
                                     </div>
                                 </div>
@@ -214,7 +214,7 @@ function filtrarPaquetes() {
                             </div>
                             ${esAdmin ? `
                                 <div class="d-flex gap-2 mb-3">
-                                    <button class="btn btn-primary flex-fill" onclick="editarPaquete(${paquete.id})">
+                                    <button class="btn btn-warning flex-fill" onclick="editarPaquete(${paquete.id})">
                                         <i class="bi bi-pencil me-2"></i> Editar
                                     </button>
                                     <button class="btn btn-danger flex-fill" onclick="eliminarPaquete(${paquete.id}, '${paquete.nombre.replace(/'/g, "\\'")}')">
@@ -449,7 +449,12 @@ function calcularPrecioTotal() {
     const multiplicador = temporadaAlta ? 1.2 : 0.8;
     const precioTotal = precioBase * multiplicador;
     
-    precioInput.value = precioTotal.toFixed(2);
+    // Formatear en formato chileno (sin decimales innecesarios)
+    if (precioTotal % 1 === 0) {
+        precioInput.value = Math.floor(precioTotal).toString();
+    } else {
+        precioInput.value = parseFloat(precioTotal.toFixed(2)).toString();
+    }
 }
 
 /**
@@ -490,7 +495,12 @@ function calcularPrecioTotalEditar() {
     const multiplicador = temporadaAlta ? 1.2 : 0.8;
     const precioTotal = precioBase * multiplicador;
     
-    precioInput.value = precioTotal.toFixed(2);
+    // Formatear en formato chileno (sin decimales innecesarios)
+    if (precioTotal % 1 === 0) {
+        precioInput.value = Math.floor(precioTotal).toString();
+    } else {
+        precioInput.value = parseFloat(precioTotal.toFixed(2)).toString();
+    }
 }
 
 /**
@@ -502,11 +512,11 @@ async function cargarDestinosModal() {
     
     try {
         const response = await fetch('/admin/api/destinos');
-        if (!response.ok) throw new Error('Error al cargar destinos');
+        if (!response.ok) throw new Error('Error al cargar destino');
         destinosData = await response.json();
         
         if (destinosData.length === 0) {
-            container.innerHTML = '<p class="text-muted mb-0">No hay destinos disponibles. Crea destinos primero.</p>';
+            container.innerHTML = '<p class="text-muted mb-0">No hay destino disponible. Crea destino primero.</p>';
             return;
         }
         
@@ -530,7 +540,7 @@ async function cargarDestinosModal() {
         const precioInput = document.getElementById('modal_precio_total');
         if (precioInput) precioInput.value = '';
     } catch (error) {
-        container.innerHTML = '<p class="text-danger mb-0">Error al cargar destinos</p>';
+        container.innerHTML = '<p class="text-danger mb-0">Error al cargar destino</p>';
     }
 }
 
@@ -601,6 +611,19 @@ async function editarPaquete(paqueteId) {
         document.getElementById('modal_editar_fecha_inicio').value = paquete.fecha_inicio || '';
         document.getElementById('modal_editar_fecha_fin').value = paquete.fecha_fin || '';
         document.getElementById('modal_editar_disponibles').value = paquete.disponibles || '';
+        
+        // Formatear precio total en formato chileno (sin decimales innecesarios)
+        const precioInput = document.getElementById('modal_editar_precio_total');
+        if (precioInput && paquete.precio_total) {
+            const precio = parseFloat(paquete.precio_total);
+            // Si es un número entero, quitar decimales
+            if (precio % 1 === 0) {
+                precioInput.value = Math.floor(precio).toString();
+            } else {
+                // Si tiene decimales, mantener solo 2 decimales máximo
+                precioInput.value = parseFloat(precio.toFixed(2)).toString();
+            }
+        }
         
         const destinosContainer = document.getElementById('destinos-container-editar');
         destinosContainer.innerHTML = '';
@@ -747,12 +770,20 @@ async function eliminarPaquete(id, nombre) {
             const data = await response.json();
             
             if (response.ok) {
-                Swal.fire('¡Eliminado!', data.message, 'success').then(() => cargarPaquetes());
+                // Mostrar toast de éxito
+                if (typeof mostrarToast === 'function') {
+                    mostrarToast(data.message || 'Paquete eliminado exitosamente', 'success', '¡Eliminado!');
+                } else {
+                    Swal.fire('¡Eliminado!', data.message, 'success');
+                }
+                // Recargar paquetes después de un breve delay
+                setTimeout(() => cargarPaquetes(), 1000);
             } else {
                 Swal.fire('Error', data.error || 'Error al eliminar el paquete', 'error');
             }
         } catch (error) {
-            Swal.fire('Error', 'Error de conexión', 'error');
+            console.error('Error al eliminar paquete:', error);
+            Swal.fire('Error', `Error de conexión: ${error.message}`, 'error');
         }
     }
 }

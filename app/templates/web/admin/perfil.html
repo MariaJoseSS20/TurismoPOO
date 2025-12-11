@@ -35,9 +35,13 @@
                         </div>
                         <div class="col-md-6 mb-3">
                             <label for="fecha_nacimiento" class="form-label"><strong>Fecha de Nacimiento</strong></label>
-                            <input type="date" class="form-control" id="fecha_nacimiento" name="fecha_nacimiento" 
-                                   value="{{ usuario.fecha_nacimiento.strftime('%Y-%m-%d') if usuario.fecha_nacimiento else '' }}" 
-                                   max="{{ fecha_maxima }}">
+                            <input type="text" class="form-control" id="fecha_nacimiento" name="fecha_nacimiento" 
+                                   value="{{ usuario.fecha_nacimiento.strftime('%d/%m/%Y') if usuario.fecha_nacimiento else '' }}" 
+                                   placeholder="dd/mm/yyyy" required autocomplete="off">
+                            <div class="form-text">Debes ser mayor de 18 años. Selecciona tu fecha de nacimiento o ingrésala manualmente (dd/mm/yyyy)</div>
+                            <div id="error_fecha_nacimiento" class="text-danger mt-1" style="display: none; font-size: 0.875rem;">
+                                <i class="bi bi-exclamation-triangle"></i> <span id="mensaje_error_fecha"></span>
+                            </div>
                         </div>
                     </div>
                     
@@ -75,5 +79,254 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const fechaInput = document.getElementById('fecha_nacimiento');
+    const errorDiv = document.getElementById('error_fecha_nacimiento');
+    const mensajeError = document.getElementById('mensaje_error_fecha');
+    let flatpickrInstance = null;
+    
+    // Calcular fecha mínima (hace 18 años)
+    const hoy = new Date();
+    const fechaMinima = new Date(hoy.getFullYear() - 18, hoy.getMonth(), hoy.getDate());
+    const fechaMinimaStr = fechaMinima.toISOString().split('T')[0];
+    
+    // Función para validar la edad (debe ser mayor de 18 años)
+    function validarEdad(fechaStr) {
+        if (!fechaStr || !fechaStr.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
+            return { valida: true };
+        }
+        
+        const parts = fechaStr.split('/');
+        const dia = parseInt(parts[0], 10);
+        const mes = parseInt(parts[1], 10) - 1;
+        const año = parseInt(parts[2], 10);
+        
+        const fechaIngresada = new Date(año, mes, dia);
+        
+        if (fechaIngresada.getFullYear() !== año || 
+            fechaIngresada.getMonth() !== mes || 
+            fechaIngresada.getDate() !== dia) {
+            return { valida: true };
+        }
+        
+        const fechaMin = new Date(
+            parseInt(fechaMinimaStr.split('-')[0], 10),
+            parseInt(fechaMinimaStr.split('-')[1], 10) - 1,
+            parseInt(fechaMinimaStr.split('-')[2], 10)
+        );
+        
+        const hoyDate = new Date();
+        hoyDate.setHours(0, 0, 0, 0);
+        
+        if (fechaIngresada > hoyDate) {
+            return { valida: false, mensaje: 'La fecha de nacimiento no puede ser futura' };
+        }
+        
+        if (fechaIngresada > fechaMin) {
+            return { valida: false, mensaje: 'Debes ser mayor de 18 años' };
+        }
+        
+        return { valida: true };
+    }
+    
+    function mostrarError(mensaje) {
+        if (mensaje) {
+            if (errorDiv && mensajeError) {
+                mensajeError.textContent = mensaje;
+                errorDiv.style.display = 'block';
+            }
+            if (fechaInput) {
+                fechaInput.classList.add('is-invalid');
+            }
+        } else {
+            if (errorDiv) {
+                errorDiv.style.display = 'none';
+            }
+            if (fechaInput) {
+                fechaInput.classList.remove('is-invalid');
+            }
+        }
+    }
+    
+    // Formateo automático con barras mientras se escribe
+    if (fechaInput) {
+        let isFormatting = false;
+        
+        fechaInput.addEventListener('input', function(e) {
+            if (isFormatting) return;
+            isFormatting = true;
+            
+            let value = e.target.value.replace(/\D/g, '');
+            
+            if (value.length > 8) {
+                value = value.substring(0, 8);
+            }
+            
+            if (value.length === 0) {
+                e.target.value = '';
+                mostrarError(null);
+                isFormatting = false;
+                return;
+            }
+            
+            let formatted = '';
+            if (value.length <= 2) {
+                formatted = value;
+                if (value.length === 2) {
+                    formatted += '/';
+                }
+            } else if (value.length <= 4) {
+                formatted = value.substring(0, 2) + '/' + value.substring(2);
+                if (value.length === 4) {
+                    formatted += '/';
+                }
+            } else {
+                formatted = value.substring(0, 2) + '/' + value.substring(2, 4) + '/' + value.substring(4);
+            }
+            
+            if (e.target.value !== formatted) {
+                e.target.value = formatted;
+            }
+            
+            isFormatting = false;
+            
+            // Validar edad cuando el formato está completo
+            if (formatted.length === 10) {
+                const validacion = validarEdad(formatted);
+                mostrarError(validacion.valida ? null : validacion.mensaje);
+            } else {
+                mostrarError(null);
+            }
+        });
+        
+        fechaInput.addEventListener('blur', function() {
+            if (this.value && this.value.length === 10) {
+                const validacion = validarEdad(this.value);
+                mostrarError(validacion.valida ? null : validacion.mensaje);
+            }
+        });
+    }
+    
+    // Inicializar Flatpickr para fecha de nacimiento
+    if (typeof flatpickr !== 'undefined' && fechaInput) {
+        flatpickrInstance = flatpickr('#fecha_nacimiento', {
+            locale: 'es',
+            dateFormat: 'd/m/Y',
+            maxDate: 'today',
+            minDate: fechaMinimaStr,
+            allowInput: true,
+            clickOpens: true,
+            theme: 'default',
+            appendTo: document.body,
+            monthSelectorType: 'static',
+            animate: true,
+            altInput: false,
+            disableMobile: false,
+            time_24hr: false,
+            onChange: function(selectedDates, dateStr, instance) {
+                if (dateStr && dateStr.length === 10) {
+                    const validacion = validarEdad(dateStr);
+                    mostrarError(validacion.valida ? null : validacion.mensaje);
+                }
+            },
+            parseDate: function(datestr, format) {
+                if (datestr && datestr.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
+                    const parts = datestr.split('/');
+                    const day = parseInt(parts[0], 10);
+                    const month = parseInt(parts[1], 10) - 1;
+                    const year = parseInt(parts[2], 10);
+                    
+                    const date = new Date(year, month, day, 12, 0, 0);
+                    
+                    if (date.getFullYear() === year && 
+                        date.getMonth() === month && 
+                        date.getDate() === day) {
+                        return date;
+                    }
+                }
+                return null;
+            }
+        });
+    }
+    
+    // Validación de nombre
+    const nombreInput = document.getElementById('nombre_completo');
+    if (nombreInput) {
+        nombreInput.addEventListener('blur', function() {
+            const nombre = this.value.trim();
+            if (nombre) {
+                const nombreRegex = /^[A-Za-zÁÉÍÓÚáéíóúÑñÜü\s\-']{2,200}$/;
+                if (!nombreRegex.test(nombre)) {
+                    this.classList.add('is-invalid');
+                    if (!this.nextElementSibling || !this.nextElementSibling.classList.contains('invalid-feedback')) {
+                        const errorDiv = document.createElement('div');
+                        errorDiv.className = 'invalid-feedback';
+                        errorDiv.textContent = 'El nombre solo puede contener letras, espacios, guiones y apóstrofes (mínimo 2 caracteres)';
+                        this.parentElement.appendChild(errorDiv);
+                    }
+                } else {
+                    this.classList.remove('is-invalid');
+                    const errorDiv = this.parentElement.querySelector('.invalid-feedback');
+                    if (errorDiv) {
+                        errorDiv.remove();
+                    }
+                }
+            }
+        });
+    }
+    
+    // Validación de teléfono
+    const telefonoInput = document.getElementById('telefono');
+    if (telefonoInput) {
+        telefonoInput.addEventListener('blur', function() {
+            const telefono = this.value.trim();
+            if (telefono) {
+                const telefonoRegex = /^(\+?56)?[2-9]\d{8}$/;
+                if (!telefonoRegex.test(telefono)) {
+                    this.classList.add('is-invalid');
+                    if (!this.nextElementSibling || !this.nextElementSibling.classList.contains('invalid-feedback')) {
+                        const errorDiv = document.createElement('div');
+                        errorDiv.className = 'invalid-feedback';
+                        errorDiv.textContent = 'El teléfono debe tener un formato válido (ej: +56912345678 o 912345678)';
+                        this.parentElement.appendChild(errorDiv);
+                    }
+                } else {
+                    this.classList.remove('is-invalid');
+                    const errorDiv = this.parentElement.querySelector('.invalid-feedback');
+                    if (errorDiv) {
+                        errorDiv.remove();
+                    }
+                }
+            }
+        });
+    }
+    
+    // Convertir fecha de formato dd/mm/yyyy a YYYY-MM-DD antes de enviar el formulario
+    const form = document.querySelector('form');
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            if (fechaInput && fechaInput.value && fechaInput.value.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
+                const parts = fechaInput.value.split('/');
+                const fechaISO = `${parts[2]}-${parts[1]}-${parts[0]}`;
+                // Crear un input hidden con el formato correcto
+                let hiddenInput = document.getElementById('fecha_nacimiento_hidden');
+                if (!hiddenInput) {
+                    hiddenInput = document.createElement('input');
+                    hiddenInput.type = 'hidden';
+                    hiddenInput.id = 'fecha_nacimiento_hidden';
+                    hiddenInput.name = 'fecha_nacimiento';
+                    form.appendChild(hiddenInput);
+                }
+                hiddenInput.value = fechaISO;
+                fechaInput.name = '';
+            }
+        });
+    }
+});
+</script>
 {% endblock %}
 

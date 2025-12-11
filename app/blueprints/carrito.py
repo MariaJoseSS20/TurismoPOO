@@ -1,6 +1,7 @@
 from flask import Blueprint, request, jsonify, session
 from app import csrf
 import time
+import logging
 from app.models.paquete import Paquete
 
 bp = Blueprint('carrito', __name__)
@@ -35,6 +36,7 @@ def obtener_carrito():
                     'tipo': 'paquete',
                     'id': paquete.id,
                     'nombre': paquete.nombre,
+                    'origen': paquete.origen or None,  # Incluir origen del paquete
                     'precio': float(paquete.precio_total),
                     'cantidad': cantidad,
                     'subtotal': float(paquete.precio_total) * cantidad,
@@ -53,9 +55,7 @@ def obtener_carrito():
                 total += float(paquete.precio_total) * cantidad
         except Exception as e:
             # Si hay un error con un item, continuar con los demás
-            import traceback
-            print(f"Error procesando item del carrito (índice {idx}): {e}")
-            traceback.print_exc()
+            logging.error(f"Error procesando item del carrito (índice {idx}): {e}", exc_info=True)
             continue
     
     return jsonify({

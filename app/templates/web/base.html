@@ -395,6 +395,13 @@
             -webkit-appearance: none !important;
             appearance: none !important;
         }
+        
+        /* Estilo personalizado para el botón de limpiar carrito */
+        .btn-outline-secondary.limpiar-carrito:hover {
+            background-color: #dc3545 !important;
+            border-color: #dc3545 !important;
+            color: #ffffff !important;
+        }
     </style>
     {% block extra_css %}{% endblock %}
     <script>
@@ -527,7 +534,7 @@ Viajes Aventura
                     {% if session.usuario_rol == 'cliente' %}
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('auth.perfil_detalle') }}">
-                            <i class="bi bi-person-circle"></i> Mi Perfil
+                            <i class="bi bi-person-circle text-primary"></i> Mi Perfil
                         </a>
                     </li>
                     {% endif %}

@@ -132,3 +132,4 @@ POO/
 - El archivo `config.py` contiene la configuración de conexión a la base de datos
 - Para producción, cambiar `SECRET_KEY` en `config.py`
 
+

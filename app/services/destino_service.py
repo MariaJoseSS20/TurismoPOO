@@ -4,6 +4,7 @@ Contiene la lógica de negocio para crear, editar y eliminar destinos
 """
 from app import db
 from app.models.destino import Destino
+from app.models.paquete import PaqueteDestino
 
 
 class DestinoService:
@@ -74,9 +75,21 @@ class DestinoService:
         
         Returns:
             str: Nombre del destino eliminado
+        
+        Raises:
+            ValueError: Si el destino está incluido en algún paquete
         """
         destino = Destino.query.get_or_404(destino_id)
         nombre = destino.nombre
+        
+        # Verificar si el destino está incluido en algún paquete
+        paquetes_con_destino = PaqueteDestino.query.filter_by(destino_id=destino_id).all()
+        
+        if paquetes_con_destino:
+            raise ValueError(
+                'No se puede eliminar un destino que está incluido en algún paquete. '
+            )
+        
         db.session.delete(destino)
         db.session.commit()
         return nombre

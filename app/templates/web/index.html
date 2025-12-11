@@ -425,8 +425,10 @@ async function agregarAlCarritoConCantidad(tipo, id) {
         const data = await response.json();
         
         if (response.ok) {
-            // Usar SweetAlert2 si está disponible
-            if (typeof Swal !== 'undefined') {
+            // Usar mostrarToast si está disponible
+            if (typeof mostrarToast === 'function') {
+                mostrarToast(data.message || `${cantidad} paquete(s) agregado(s) al carrito`, 'success', '¡Agregado!');
+            } else if (typeof Swal !== 'undefined') {
                 Swal.fire({
                     icon: 'success',
                     title: '¡Agregado!',
@@ -443,12 +445,24 @@ async function agregarAlCarritoConCantidad(tipo, id) {
             // Actualizar contador del carrito si existe
             if (typeof actualizarContadorCarrito === 'function') {
                 actualizarContadorCarrito();
+            } else if (data.cantidad !== undefined) {
+                const contador = document.getElementById('carrito-contador');
+                if (contador) {
+                    if (data.cantidad > 0) {
+                        contador.textContent = data.cantidad;
+                        contador.style.display = 'inline-block';
+                    } else {
+                        contador.style.display = 'none';
+                    }
+                }
             }
         } else {
             throw new Error(data.error || 'Error al agregar al carrito');
         }
     } catch (error) {
-        if (typeof Swal !== 'undefined') {
+        if (typeof mostrarToast === 'function') {
+            mostrarToast(error.message || 'Error al agregar al carrito', 'error', 'Error');
+        } else if (typeof Swal !== 'undefined') {
             Swal.fire({
                 icon: 'error',
                 title: 'Error',

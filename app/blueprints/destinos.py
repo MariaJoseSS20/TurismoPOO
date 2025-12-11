@@ -74,21 +74,37 @@ def actualizar(id):
     """API pública para actualizar destino (usa servicio)"""
     try:
         from app.services.destino_service import DestinoService
+        from app.models.destino import Destino
         data = request.get_json()
+        
+        # Obtener destino existente para validar campos obligatorios
+        destino_existente = Destino.query.get_or_404(id)
         
         actividades = data.get('actividades')
         if actividades and isinstance(actividades, list):
             actividades = ','.join(actividades)
+        
+        # Validar que descripción y actividades no estén vacíos
+        descripcion = data.get('descripcion', destino_existente.descripcion)
+        if descripcion:
+            descripcion = descripcion.strip()
+        if not descripcion:
+            return jsonify({'error': 'La descripción es obligatoria'}), 400
+        
+        if actividades is not None:
+            actividades = actividades.strip() if actividades else ''
+        else:
+            actividades = destino_existente.actividades or ''
+        if not actividades:
+            return jsonify({'error': 'Las actividades son obligatorias'}), 400
         
         datos = {}
         if 'nombre' in data:
             datos['nombre'] = data['nombre']
         if 'origen' in data:
             datos['origen'] = data['origen']
-        if 'descripcion' in data:
-            datos['descripcion'] = data['descripcion']
-        if actividades is not None:
-            datos['actividades'] = actividades
+        datos['descripcion'] = descripcion
+        datos['actividades'] = actividades
         if 'costo_base' in data:
             datos['costo_base'] = data['costo_base']
         

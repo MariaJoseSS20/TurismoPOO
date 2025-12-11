@@ -19,7 +19,19 @@
                             <i class="bi bi-person"></i> Nombre Completo:
                         </label>
                         <input type="text" class="form-control form-control-lg" id="nombre_completo" 
-                               name="nombre_completo" required placeholder="Juan Pérez">
+                               name="nombre_completo" required placeholder="Juan Pérez"
+                               pattern="[A-Za-zÁÉÍÓÚáéíóúÑñ\s\-']{3,200}"
+                               title="Solo letras, espacios, guiones y apóstrofes, mínimo 3 caracteres">
+                        <div id="error_nombre_completo" class="text-danger mt-1" style="display: none; font-size: 0.875rem;">
+                            <i class="bi bi-exclamation-triangle"></i> <span id="mensaje_error_nombre"></span>
+                        </div>
+                        {% if form.nombre_completo.errors %}
+                            <div class="text-danger mt-1" style="font-size: 0.875rem;">
+                                {% for error in form.nombre_completo.errors %}
+                                    <i class="bi bi-exclamation-triangle"></i> {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% endif %}
                     </div>
                     
                     <div class="mb-3">
@@ -28,23 +40,51 @@
                         </label>
                         <input 
                             type="text" 
-                            class="form-control form-control-lg" 
+                            class="form-control form-control-lg {% if form.rut.errors %}is-invalid{% endif %}" 
                             id="rut" 
                             name="rut" 
                             required 
                             placeholder="12.345.678-9" 
                             maxlength="20"
                             pattern="^\d{1,2}\.?\d{3}\.?\d{3}-[\dkK]$"
-                            title="Formato válido: 12.345.678-9">
+                            title="Formato válido: 12.345.678-9"
+                            value="{{ form.rut.data if form.rut.data else '' }}">
                         <div class="form-text">Formato: 12.345.678-9 (con guion y dígito verificador)</div>
+                        <div id="error_rut" class="text-danger mt-1" style="display: none; font-size: 0.875rem;">
+                            <i class="bi bi-exclamation-triangle"></i> <span id="mensaje_error_rut"></span>
+                        </div>
+                        {% if form.rut.errors %}
+                            <div class="text-danger mt-1" style="font-size: 0.875rem;">
+                                {% for error in form.rut.errors %}
+                                    <i class="bi bi-exclamation-triangle"></i> {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% endif %}
                     </div>
                     
                     <div class="mb-3">
                         <label for="email" class="form-label fw-bold text-primary">
                             <i class="bi bi-envelope"></i> Email:
                         </label>
-                        <input type="email" class="form-control form-control-lg" id="email" 
-                               name="email" required placeholder="tu@email.com">
+                        <input type="email" class="form-control form-control-lg {% if form.email.errors %}is-invalid{% endif %}" 
+                               id="email" 
+                               name="email" required placeholder="tu@email.com"
+                               value="{{ form.email.data if form.email.data else '' }}">
+                        <div id="error_email" class="text-danger mt-1" style="display: none; font-size: 0.875rem;">
+                            <i class="bi bi-exclamation-triangle"></i> <span id="mensaje_error_email"></span>
+                        </div>
+                        {% if form.email.errors %}
+                            <div class="text-danger mt-1" style="font-size: 0.875rem;" id="backend-email-error">
+                                {# Mostrar solo un error, priorizando "ya está registrado" #}
+                                {% set mostrar_error = form.email.errors[0] %}
+                                {% for error in form.email.errors %}
+                                    {% if 'registrado' in error|lower %}
+                                        {% set mostrar_error = error %}
+                                    {% endif %}
+                                {% endfor %}
+                                <i class="bi bi-exclamation-triangle"></i> {{ mostrar_error }}
+                            </div>
+                        {% endif %}
                     </div>
                     
                     <div class="mb-3">
@@ -267,18 +307,379 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+    
+    // Convertir fecha de dd/mm/yyyy a yyyy-mm-dd antes de enviar
+    const formRegistro = document.getElementById('formRegistro');
+    if (formRegistro) {
+        formRegistro.addEventListener('submit', function(e) {
+            const fechaInput = document.getElementById('fecha_nacimiento');
+            if (fechaInput && fechaInput.value) {
+                const fechaStr = fechaInput.value.trim();
+                // Si la fecha está en formato dd/mm/yyyy, convertirla
+                if (fechaStr.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
+                    const parts = fechaStr.split('/');
+                    const fechaISO = `${parts[2]}-${parts[1]}-${parts[0]}`;
+                    fechaInput.value = fechaISO;
+                }
+            }
+        });
+    }
 });
 </script>
                     </div>
                     
+                    <script>
+                    // Validaciones en tiempo real para todos los campos
+                    document.addEventListener('DOMContentLoaded', function() {
+                        const nombreInput = document.getElementById('nombre_completo');
+                        const rutInput = document.getElementById('rut');
+                        const emailInput = document.getElementById('email');
+                        const telefonoInput = document.getElementById('telefono');
+                        const passwordInput = document.getElementById('password');
+                        const confirmarPasswordInput = document.getElementById('confirmar_password');
+                        
+                        // Elementos de error
+                        const errorNombre = document.getElementById('error_nombre_completo');
+                        const mensajeErrorNombre = document.getElementById('mensaje_error_nombre');
+                        const errorRut = document.getElementById('error_rut');
+                        const mensajeErrorRut = document.getElementById('mensaje_error_rut');
+                        const errorEmail = document.getElementById('error_email');
+                        const mensajeErrorEmail = document.getElementById('mensaje_error_email');
+                        const errorTelefono = document.getElementById('error_telefono');
+                        const mensajeErrorTelefono = document.getElementById('mensaje_error_telefono');
+                        const errorPassword = document.getElementById('error_password');
+                        const mensajeErrorPassword = document.getElementById('mensaje_error_password');
+                        const errorConfirmarPassword = document.getElementById('error_confirmar_password');
+                        const mensajeErrorConfirmarPassword = document.getElementById('mensaje_error_confirmar_password');
+                        
+                        // Función para mostrar/ocultar errores
+                        function mostrarError(inputElement, errorDiv, mensajeDiv, mensaje) {
+                            if (mensaje) {
+                                inputElement.classList.add('is-invalid');
+                                inputElement.classList.remove('is-valid');
+                                if (errorDiv && mensajeDiv) {
+                                    mensajeDiv.textContent = mensaje;
+                                    errorDiv.style.display = 'block';
+                                }
+                            } else {
+                                inputElement.classList.remove('is-invalid');
+                                inputElement.classList.add('is-valid');
+                                if (errorDiv) errorDiv.style.display = 'none';
+                            }
+                        }
+                        
+                        // Validar nombre completo
+                        function validarNombre(nombre) {
+                            if (!nombre || nombre.trim().length < 3) {
+                                return { valida: false, mensaje: 'El nombre debe tener al menos 3 caracteres' };
+                            }
+                            if (nombre.trim().length > 200) {
+                                return { valida: false, mensaje: 'El nombre no puede tener más de 200 caracteres' };
+                            }
+                            const regex = /^[A-Za-zÁÉÍÓÚáéíóúÑñÜü\s\-']{3,200}$/;
+                            if (!regex.test(nombre.trim())) {
+                                return { valida: false, mensaje: 'El nombre solo puede contener letras, espacios, guiones y apóstrofes' };
+                            }
+                            return { valida: true };
+                        }
+                        
+                        // Validar RUT chileno
+                        function validarRutChileno(rutRaw) {
+                            if (!rutRaw) return { valida: false, mensaje: 'El RUT es obligatorio' };
+                            
+                            const rut = rutRaw.replace(/\./g, '').replace(/-/g, '').trim().toUpperCase();
+                            if (rut.length < 2) return { valida: false, mensaje: 'El RUT es demasiado corto' };
+                            
+                            const cuerpo = rut.slice(0, -1);
+                            const dv = rut.slice(-1);
+                            
+                            if (!/^\d+$/.test(cuerpo)) return { valida: false, mensaje: 'El RUT no tiene un formato válido' };
+                            
+                            // Calcular dígito verificador
+                            let suma = 0;
+                            let multiplicador = 2;
+                            for (let i = cuerpo.length - 1; i >= 0; i--) {
+                                suma += parseInt(cuerpo[i]) * multiplicador;
+                                multiplicador++;
+                                if (multiplicador > 7) multiplicador = 2;
+                            }
+                            
+                            const resto = suma % 11;
+                            let dvCalc = 11 - resto;
+                            if (dvCalc === 11) dvCalc = '0';
+                            else if (dvCalc === 10) dvCalc = 'K';
+                            else dvCalc = dvCalc.toString();
+                            
+                            if (dv !== dvCalc) {
+                                return { valida: false, mensaje: 'El dígito verificador del RUT no es válido' };
+                            }
+                            
+                            return { valida: true };
+                        }
+                        
+                        // Verificar si RUT ya existe
+                        async function verificarRutExiste(rut) {
+                            try {
+                                const response = await fetch(`/auth/verificar-rut?rut=${encodeURIComponent(rut)}`);
+                                const data = await response.json();
+                                return data.existe || false;
+                            } catch (error) {
+                                console.error('Error al verificar RUT:', error);
+                                return false;
+                            }
+                        }
+                        
+                        // Validar email
+                        function validarEmailFormato(email) {
+                            if (!email) return { valida: false, mensaje: 'El email es obligatorio' };
+                            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                            if (!emailRegex.test(email.trim())) {
+                                return { valida: false, mensaje: 'El email no tiene un formato válido' };
+                            }
+                            return { valida: true };
+                        }
+                        
+                        // Verificar si email ya existe
+                        async function verificarEmailExiste(email) {
+                            try {
+                                const response = await fetch(`/auth/verificar-email?email=${encodeURIComponent(email)}`);
+                                const data = await response.json();
+                                return data.existe || false;
+                            } catch (error) {
+                                console.error('Error al verificar email:', error);
+                                return false;
+                            }
+                        }
+                        
+                        // Validar teléfono chileno
+                        function validarTelefonoChileno(telefono) {
+                            if (!telefono) return { valida: false, mensaje: 'El teléfono es obligatorio' };
+                            const regex = /^(\+?56)?(9)[0-9]{8}$/;
+                            if (!regex.test(telefono.replace(/\s/g, ''))) {
+                                return { valida: false, mensaje: 'El teléfono no tiene un formato válido (ej: +56912345678 o 912345678)' };
+                            }
+                            return { valida: true };
+                        }
+                        
+                        // Validar contraseña
+                        function validarPassword(password) {
+                            if (!password) return { valida: false, mensaje: 'La contraseña es obligatoria' };
+                            if (password.length < 6) {
+                                return { valida: false, mensaje: 'La contraseña debe tener al menos 6 caracteres' };
+                            }
+                            return { valida: true };
+                        }
+                        
+                        // Validar confirmar contraseña
+                        function validarConfirmarPassword(password, confirmarPassword) {
+                            if (!confirmarPassword) return { valida: false, mensaje: 'Debes confirmar la contraseña' };
+                            if (password !== confirmarPassword) {
+                                return { valida: false, mensaje: 'Las contraseñas no coinciden' };
+                            }
+                            return { valida: true };
+                        }
+                        
+                        // Validación en tiempo real para nombre
+                        if (nombreInput) {
+                            nombreInput.addEventListener('blur', function() {
+                                const validacion = validarNombre(this.value);
+                                mostrarError(this, errorNombre, mensajeErrorNombre, validacion.valida ? null : validacion.mensaje);
+                            });
+                            nombreInput.addEventListener('input', function() {
+                                if (this.value.trim() && validarNombre(this.value).valida) {
+                                    mostrarError(this, errorNombre, mensajeErrorNombre, null);
+                                }
+                            });
+                        }
+                        
+                        // Validación en tiempo real para RUT
+                        let rutTimeout;
+                        if (rutInput) {
+                            rutInput.addEventListener('blur', async function() {
+                                const rut = this.value.trim();
+                                if (!rut) {
+                                    mostrarError(this, errorRut, mensajeErrorRut, 'El RUT es obligatorio');
+                                    return;
+                                }
+                                
+                                const validacionFormato = validarRutChileno(rut);
+                                if (!validacionFormato.valida) {
+                                    mostrarError(this, errorRut, mensajeErrorRut, validacionFormato.mensaje);
+                                    return;
+                                }
+                                
+                                const existe = await verificarRutExiste(rut);
+                                if (existe) {
+                                    mostrarError(this, errorRut, mensajeErrorRut, 'El RUT ya está registrado');
+                                } else {
+                                    mostrarError(this, errorRut, mensajeErrorRut, null);
+                                }
+                            });
+                            
+                            rutInput.addEventListener('input', function() {
+                                clearTimeout(rutTimeout);
+                                const rut = this.value.trim();
+                                const inputElement = this;
+                                if (rut && validarRutChileno(rut).valida) {
+                                    rutTimeout = setTimeout(async () => {
+                                        const existe = await verificarRutExiste(rut);
+                                        if (existe) {
+                                            mostrarError(inputElement, errorRut, mensajeErrorRut, 'El RUT ya está registrado');
+                                        } else {
+                                            mostrarError(inputElement, errorRut, mensajeErrorRut, null);
+                                        }
+                                    }, 500);
+                                }
+                            });
+                        }
+                        
+                        // Validación en tiempo real para email
+                        let emailTimeout;
+                        if (emailInput) {
+                            // Ocultar errores del backend cuando el usuario empiece a escribir
+                            emailInput.addEventListener('input', function() {
+                                const backendError = document.getElementById('backend-email-error');
+                                if (backendError) {
+                                    backendError.style.display = 'none';
+                                }
+                            });
+                            
+                            emailInput.addEventListener('blur', async function() {
+                                const email = this.value.trim();
+                                
+                                // Ocultar errores del backend
+                                const backendError = document.getElementById('backend-email-error');
+                                if (backendError) {
+                                    backendError.style.display = 'none';
+                                }
+                                
+                                if (!email) {
+                                    mostrarError(this, errorEmail, mensajeErrorEmail, 'El email es obligatorio');
+                                    return;
+                                }
+                                
+                                const validacionFormato = validarEmailFormato(email);
+                                if (!validacionFormato.valida) {
+                                    mostrarError(this, errorEmail, mensajeErrorEmail, validacionFormato.mensaje);
+                                    return;
+                                }
+                                
+                                const existe = await verificarEmailExiste(email);
+                                if (existe) {
+                                    mostrarError(this, errorEmail, mensajeErrorEmail, 'El email ya está registrado');
+                                } else {
+                                    mostrarError(this, errorEmail, mensajeErrorEmail, null);
+                                }
+                            });
+                            
+                            emailInput.addEventListener('input', function() {
+                                clearTimeout(emailTimeout);
+                                const email = this.value.trim();
+                                const inputElement = this;
+                                
+                                // Si está vacío, no validar aún (esperar a blur)
+                                if (!email) {
+                                    mostrarError(inputElement, errorEmail, mensajeErrorEmail, null);
+                                    return;
+                                }
+                                
+                                // Validar formato primero
+                                const validacionFormato = validarEmailFormato(email);
+                                if (!validacionFormato.valida) {
+                                    mostrarError(inputElement, errorEmail, mensajeErrorEmail, validacionFormato.mensaje);
+                                    return;
+                                }
+                                
+                                // Si el formato es válido, verificar unicidad
+                                emailTimeout = setTimeout(async () => {
+                                    const existe = await verificarEmailExiste(email);
+                                    if (existe) {
+                                        mostrarError(inputElement, errorEmail, mensajeErrorEmail, 'El email ya está registrado');
+                                    } else {
+                                        mostrarError(inputElement, errorEmail, mensajeErrorEmail, null);
+                                    }
+                                }, 500);
+                            });
+                        }
+                        
+                        // Validación en tiempo real para teléfono
+                        if (telefonoInput) {
+                            telefonoInput.addEventListener('blur', function() {
+                                const validacion = validarTelefonoChileno(this.value);
+                                mostrarError(this, errorTelefono, mensajeErrorTelefono, validacion.valida ? null : validacion.mensaje);
+                            });
+                            telefonoInput.addEventListener('input', function() {
+                                if (this.value.trim()) {
+                                    const validacion = validarTelefonoChileno(this.value);
+                                    mostrarError(this, errorTelefono, mensajeErrorTelefono, validacion.valida ? null : validacion.mensaje);
+                                } else {
+                                    mostrarError(this, errorTelefono, mensajeErrorTelefono, 'El teléfono es obligatorio');
+                                }
+                            });
+                        }
+                        
+                        // Validación en tiempo real para contraseña
+                        if (passwordInput) {
+                            passwordInput.addEventListener('blur', function() {
+                                const validacion = validarPassword(this.value);
+                                mostrarError(this, errorPassword, mensajeErrorPassword, validacion.valida ? null : validacion.mensaje);
+                                
+                                // Validar también confirmar contraseña si tiene valor
+                                if (confirmarPasswordInput && confirmarPasswordInput.value) {
+                                    const validacionConfirmar = validarConfirmarPassword(this.value, confirmarPasswordInput.value);
+                                    mostrarError(confirmarPasswordInput, errorConfirmarPassword, mensajeErrorConfirmarPassword, validacionConfirmar.valida ? null : validacionConfirmar.mensaje);
+                                }
+                            });
+                            passwordInput.addEventListener('input', function() {
+                                if (this.value && validarPassword(this.value).valida) {
+                                    mostrarError(this, errorPassword, mensajeErrorPassword, null);
+                                }
+                                
+                                // Validar también confirmar contraseña si tiene valor
+                                if (confirmarPasswordInput && confirmarPasswordInput.value) {
+                                    const validacionConfirmar = validarConfirmarPassword(this.value, confirmarPasswordInput.value);
+                                    mostrarError(confirmarPasswordInput, errorConfirmarPassword, mensajeErrorConfirmarPassword, validacionConfirmar.valida ? null : validacionConfirmar.mensaje);
+                                }
+                            });
+                        }
+                        
+                        // Validación en tiempo real para confirmar contraseña
+                        if (confirmarPasswordInput) {
+                            confirmarPasswordInput.addEventListener('blur', function() {
+                                const validacion = validarConfirmarPassword(passwordInput.value, this.value);
+                                mostrarError(this, errorConfirmarPassword, mensajeErrorConfirmarPassword, validacion.valida ? null : validacion.mensaje);
+                            });
+                            confirmarPasswordInput.addEventListener('input', function() {
+                                if (this.value && passwordInput.value) {
+                                    const validacion = validarConfirmarPassword(passwordInput.value, this.value);
+                                    mostrarError(this, errorConfirmarPassword, mensajeErrorConfirmarPassword, validacion.valida ? null : validacion.mensaje);
+                                }
+                            });
+                        }
+                    });
+                    </script>
+                    
                     <div class="mb-3">
                         <label for="telefono" class="form-label fw-bold text-primary">
-                            <i class="bi bi-telephone"></i> Teléfono:
+                            <i class="bi bi-telephone"></i> Teléfono: <span class="text-danger">*</span>
                         </label>
-                        <input type="tel" class="form-control form-control-lg" id="telefono" 
-                               name="telefono" placeholder="+56 9 1234 5678" 
-                               maxlength="20" pattern="^(\+?56\s?)?[9]\s?\d{4}\s?\d{4}$|^\+?[1-9]\d{1,14}$">
-                        <div class="form-text">Opcional. Formato: +56 9 1234 5678 o formato internacional</div>
+                        <input type="tel" class="form-control form-control-lg {% if form.telefono.errors %}is-invalid{% endif %}" 
+                               id="telefono" 
+                               name="telefono" required placeholder="+56912345678" 
+                               maxlength="20" pattern="^(\+?56)?(9)[0-9]{8}$"
+                               title="Formato: +56912345678 o 912345678"
+                               value="{{ form.telefono.data if form.telefono.data else '' }}">
+                        <div class="form-text">Formato: +56912345678 o 912345678</div>
+                        <div id="error_telefono" class="text-danger mt-1" style="display: none; font-size: 0.875rem;">
+                            <i class="bi bi-exclamation-triangle"></i> <span id="mensaje_error_telefono"></span>
+                        </div>
+                        {% if form.telefono.errors %}
+                            <div class="text-danger mt-1" style="font-size: 0.875rem;">
+                                {% for error in form.telefono.errors %}
+                                    <i class="bi bi-exclamation-triangle"></i> {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% endif %}
                     </div>
                     
                     <div class="mb-3">
@@ -288,6 +689,9 @@ document.addEventListener('DOMContentLoaded', function() {
                         <input type="password" class="form-control form-control-lg" id="password" 
                                name="password" required placeholder="••••••••" minlength="6">
                         <div class="form-text">Mínimo 6 caracteres</div>
+                        <div id="error_password" class="text-danger mt-1" style="display: none; font-size: 0.875rem;">
+                            <i class="bi bi-exclamation-triangle"></i> <span id="mensaje_error_password"></span>
+                        </div>
                     </div>
                     
                     <div class="mb-4">
@@ -296,6 +700,9 @@ document.addEventListener('DOMContentLoaded', function() {
                         </label>
                         <input type="password" class="form-control form-control-lg" id="confirmar_password" 
                                name="confirmar_password" required placeholder="••••••••" minlength="6">
+                        <div id="error_confirmar_password" class="text-danger mt-1" style="display: none; font-size: 0.875rem;">
+                            <i class="bi bi-exclamation-triangle"></i> <span id="mensaje_error_confirmar_password"></span>
+                        </div>
                     </div>
                     
                     <button type="submit" class="btn btn-primary w-100 btn-lg fw-bold mb-3">

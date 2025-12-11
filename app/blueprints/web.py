@@ -33,11 +33,5 @@ def carrito():
                 'fecha_nacimiento': usuario.fecha_nacimiento.strftime('%d/%m/%Y') if usuario.fecha_nacimiento else ''
             }
     
-    return render_template('web/carrito.html', session=session, usuario_data=usuario_data)
-
-@bp.route('/mis-reservas')
-def mis_reservas():
-    if 'usuario_id' not in session:
-        flash('Debes iniciar sesión para ver tus reservas', 'warning')
-        return redirect(url_for('auth.login'))
-    return render_template('web/mis_reservas.html', session=session)
+    usuario_rol = session.get('usuario_rol', '')
+    return render_template('web/carrito.html', session=session, usuario_data=usuario_data, usuario_rol=usuario_rol)

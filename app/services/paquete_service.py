@@ -123,9 +123,39 @@ class PaqueteService:
         
         Returns:
             str: Nombre del paquete eliminado
+        
+        Raises:
+            ValueError: Si el paquete tiene reservas confirmadas asociadas
         """
+        from app.models.reserva import Reserva
+        from app.models.viajero import Viajero
+        
         paquete = Paquete.query.get_or_404(paquete_id)
         nombre = paquete.nombre
+        
+        # Verificar si el paquete tiene reservas confirmadas
+        reservas_confirmadas = Reserva.query.filter_by(paquete_id=paquete_id, estado='confirmada').all()
+        
+        if reservas_confirmadas:
+            cantidad_reservas = len(reservas_confirmadas)
+            raise ValueError(
+                f'No se puede eliminar el paquete "{nombre}" porque tiene {cantidad_reservas} reserva(s) confirmada(s). '
+                f'Debes cancelar todas las reservas antes de eliminar el paquete.'
+            )
+        
+        # Obtener todas las reservas asociadas al paquete (solo canceladas si las hay)
+        reservas = Reserva.query.filter_by(paquete_id=paquete_id).all()
+        
+        # Eliminar primero los viajeros asociados a las reservas
+        for reserva in reservas:
+            # Eliminar todos los viajeros de esta reserva
+            Viajero.query.filter_by(reserva_id=reserva.id).delete()
+        
+        # Eliminar las reservas (ahora sin viajeros asociados)
+        for reserva in reservas:
+            db.session.delete(reserva)
+        
+        # Finalmente eliminar el paquete
         db.session.delete(paquete)
         db.session.commit()
         return nombre

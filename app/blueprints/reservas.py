@@ -22,6 +22,10 @@ def crear():
     if 'usuario_id' not in session:
         return jsonify({'error': 'Debes iniciar sesión'}), 401
     
+    # Solo los clientes pueden crear reservas
+    if session.get('usuario_rol') != 'cliente':
+        return jsonify({'error': 'Solo los usuarios con rol de cliente pueden crear reservas'}), 403
+    
     data = request.get_json()
     if not data or not data.get('paquete_id'):
         return jsonify({'error': 'paquete_id requerido'}), 400
@@ -39,12 +43,23 @@ def crear():
 @bp.route('/<int:id>', methods=['PUT'])
 @csrf.exempt
 def actualizar(id):
+    if 'usuario_id' not in session:
+        return jsonify({'error': 'Debes iniciar sesión'}), 401
+    
     data = request.get_json()
     
     if 'estado' not in data:
         return jsonify({'error': 'El campo estado es requerido'}), 400
     
     try:
+        reserva = Reserva.query.get_or_404(id)
+        
+        # Los administradores pueden modificar cualquier reserva
+        # Los clientes solo pueden modificar sus propias reservas
+        usuario_rol = session.get('usuario_rol', '')
+        if usuario_rol != 'admin' and reserva.usuario_id != session['usuario_id']:
+            return jsonify({'error': 'No tienes permiso para modificar esta reserva'}), 403
+        
         reserva = ReservaService.actualizar_estado_reserva(id, data['estado'])
         return jsonify(reserva.to_dict())
     except ValueError as e:

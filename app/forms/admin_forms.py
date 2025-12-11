@@ -22,11 +22,13 @@ class DestinoForm(FlaskForm):
     ])
     
     descripcion = TextAreaField('Descripción', validators=[
-        Optional()
+        DataRequired(message='La descripción es obligatoria'),
+        Length(min=1, message='La descripción no puede estar vacía')
     ])
     
     actividades = TextAreaField('Actividades', validators=[
-        Optional()
+        DataRequired(message='Las actividades son obligatorias'),
+        Length(min=1, message='Las actividades no pueden estar vacías')
     ])
     
     costo_base = DecimalField('Costo Base', validators=[
